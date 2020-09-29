@@ -2,6 +2,6 @@
 .tmp
 .tar
 Pascal_VOC_2012/*
-!Pascal_VOC_2012
+!Pascal_VOC_2012/test
 .vscode
 .xml
