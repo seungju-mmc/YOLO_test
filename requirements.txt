@@ -1,6 +1,0 @@
-torch==1.6.0
-torchvision
-matplotlib
-opencv-python
-pillow
-wget
