@@ -229,8 +229,8 @@ class ImageNetDataset(Dataset):
         crop = transforms.RandomCrop(int(img_size))
         colojiter = transforms.ColorJitter(brightness=.75,saturation=.75,hue=.1)
         
-        self.transformation = transforms.Compose([Resize([int(img_size*1.2),int(img_size*1.2)]),crop,colojiter,transforms.ToTensor()])
-        self.va_transformation = transforms.Compose([Resize([img_size,img_size]),transforms.ToTensor()])
+        self.transformation = transforms.Compose([transforms.Resize([int(img_size*1.2),int(img_size*1.2)]),crop,colojiter,transforms.ToTensor()])
+        self.va_transformation = transforms.Compose([transforms.Resize([img_size,img_size]),transforms.ToTensor()])
         self.val_mode = val_mode
         
     
