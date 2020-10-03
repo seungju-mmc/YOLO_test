@@ -346,10 +346,6 @@ class anchor_box:
 
         return idx
 
-
-anchor = anchor_box()
-anchor.run()
-    
     
 
 if __name__=="__main__":
