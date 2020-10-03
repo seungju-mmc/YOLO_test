@@ -12,7 +12,7 @@ def conv_batch(in_num, out_num, kernel_size=3, padding=1, stride=1, eps=1e-5, mo
         temp = nn.Sequential(
             nn.Conv2d(in_num, out_num, kernel_size=kernel_size, padding=padding, stride=stride, bias=False),
             nn.BatchNorm2d(out_num,eps=eps,momentum=momentum),
-            nn.LeakyReLU(negative_slope=negative_slope=)
+            nn.LeakyReLU(negative_slope=negative_slope)
         )
     return temp
 
