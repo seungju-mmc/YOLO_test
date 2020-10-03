@@ -10,8 +10,8 @@ def conv_batch(in_num, out_num, kernel_size=3, padding=1, stride=1, eps=1e-5, mo
         )
     else:
         temp = nn.Sequential(
-            nn.Conv2d(in_num, out_num, kernel_size=kernel_size, padding=padding, stride=stride, bias=False)
-            nn.BatchNorm2d(out_num,eps=eps,momentum=momentum)
+            nn.Conv2d(in_num, out_num, kernel_size=kernel_size, padding=padding, stride=stride, bias=False),
+            nn.BatchNorm2d(out_num,eps=eps,momentum=momentum),
             nn.LeakyReLU(negative_slope=negative_slope=)
         )
     return temp
@@ -72,4 +72,77 @@ class Dakrnet19(nn.Module):
         x = self.conv16(x)
         x = self.conv17(x)
         x = self.conv18(x)
-        x = self.conv3(x)
+        x = self.conv19(x)
+        x = self.avg_pool(x)
+        x = self.softmax(x)
+
+        return x
+
+from torch.utils.data import Dataset, DataLoader
+from Dataset import ImageNetDataset
+from utils import get_optimizer, parallel_model
+class Darknet19_train:
+
+    def __init__(self, batch_size=128, epoch=10, lr=1e-1, weight_decay = 5e-4, momentum=0.9, device="cpu", division=1,burn_in = True):
+        self.epoch = epoch
+        self.batch_size = batch_size
+        self.mini_batch = int(self.batch_size/divicion)
+        self.device = torch.device(device)
+        self.division = division
+        self.dataset = DataLoader(ImageNetDataset(), batch_size=self.mini_batch,shuffle=True,num_workers=-1)
+        self.va_dataset = DataLoader(ImageNetDataset(val_mode=True), batch_size=1, shuffle=True)
+        self.network = Dakrnet19().to(self.device)
+
+        self.epoch = epoch
+        parm = {}
+        parm['name'] = 'sgd'
+        parm['learning_rate'] = lr
+        parm['weight_decay'] = weight_decay
+        parm['momentum'] = momentum
+
+        self.optimizer = get_optimizer(parm, self.network)
+        self.lr = lr
+        self.burn_in = burn_in
+        self.critieron = nn.CrossEntropyLoss()
+
+    def lr_scheduling(self, step):
+        if stpe<1001 and self.burn_in:
+            lr = self.lr *(step/1004)**4
+            for g in self.optimizer.param_groups:
+                g['lr'] = lr
+    
+    def run(self):
+        step = 1
+        print_interval = 5
+        for i in range(self.epoch):
+            Loss = []
+
+            n = 0
+            for data in self.self.dataset:
+                image, label = data[0].to(self.device), data[1].to(self.device)
+                # hypo = parallel_model(self.network, image, output_device = 3, device_ids=[0,1,2,3])
+                hypo = self.network.forward(image)
+                loss = self.critieron(hypo, label)/self.division
+                loss.backward()
+                n +=1
+                if n == self.division:
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+                    self.lr_scheduling(step)
+                    n=0
+                    step+1
+                with torch.no_grad():
+                    Loss.append(loss.detach().cpu().numpy())
+                
+                if step >1000:
+                    print_interval = 100
+                
+                if step % print_interval ==0 and n==0:
+                    with torch.no_grad():
+                        loss = np.array(Loss).mean()
+                        print("Epoch: {} // Step: {} // Loss : {}".format((i+1)),step,loss)
+                        Loss = []
+                        
+if __name__ == "__main__":
+    darknet19 = Dakrnet19_train(batch_size=64,device="cuda:3")
+    darknet19.run()
