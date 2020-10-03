@@ -109,11 +109,18 @@ class VOCDataset:
         self.train_mode = train_mode
         self.resize_bd = Resize_bd(img_size=img_size)
         self.crop_bd = Crop_bd()
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
 
         self.transform = transforms.Compose(
-            [transforms.RandomRotation(7),
-            transforms.ColorJitter(brightness=0.75,hue=0.1,saturation=.75)]
+            transforms.ColorJitter(brightness=0.75,hue=0.1,saturation=.75),
+            transforms.ToTensor(),
+            normalize]
         )
+        self.va_transform = transforms.Compose([
+            transforms.ToTensor(),
+            normalize
+        ])
 
     def __getitem__(self, idx):
 
@@ -151,7 +158,7 @@ class VOCDataset:
             image= self.transform(image)
         else:
             image, target = self.resize_bd((image,target))
-            image = transforms.ToTensor()(image)
+            image = self.va_transform(image)
 
         return {'image':image, 'target':target}
 
@@ -186,7 +193,164 @@ class VOCDataset:
         np.save('./dataset/train.npy', self.train_set)
         np.save('./dataset/test.npy', self.test_set)
 
+class ImageNetDataset(Dataset):
+    
+    
+    def __init__(self, img_size=256, val_mode = False):
+        super(ImageNetDataset,self).__init__()
+        
+        self.cur_path = '/home/mmc-server3/Server/server2/seungju/YOLO/'
+        self.data_path = '/home/mmc-server3/Server/dataset/ILSVRC2012_img_train/'
+        if val_mode:
+            self.data_path = '/home/mmc-server3/Server/dataset/ILSVRC2012_img_val/'
+            self.val_label = np.loadtxt('./ILSVRC2011_validation_ground_truth.txt')
+            self.cat = np.empty((0), dtype='str')
+        
+        data = np.empty((0,), dtype='str')
+        self.category = os.listdir(self.data_path)
 
+        self.category.sort()
+
+        for i in self.category:
+            path = self.data_path + i
+            k = os.listdir(path)
+            k.sort()
+            k = np.array(k)
+            k = k.reshape((-1,))
+            data = np.concatenate((data,k),0)
+            if val_mode:
+                temp = np.stack([i for j in range(len(k))])
+                
+                self.cat = np.concatenate((self.cat,temp),0)
+        self.data = data
+        print("Total Image : {} // Total Cateogry : {}".format(self.data.shape[0], len(self.category)))
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+        crop = transforms.RandomCrop(int(img_size))
+        colojiter = transforms.ColorJitter(brightness=.75,saturation=.75,hue=.1)
+        
+        self.transformation = transforms.Compose([Resize([int(img_size*1.2),int(img_size*1.2)]),crop,colojiter,transforms.ToTensor()])
+        self.va_transformation = transforms.Compose([Resize([img_size,img_size]),transforms.ToTensor()])
+        self.val_mode = val_mode
+        
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        
+        data = self.data[idx]
+        if self.val_mode:
+            cat = self.cat[idx]
+            cat_idx = self.category.index(cat)
+        else:
+            cat = data[:9]
+            cat_idx = self.category.index(cat)
+        path = self.data_path + cat +'/' + data
+        image = Image.open(path)
+        image = image.convert('RGB')
+        
+        if self.val_mode:
+            image = self.va_transformation(image)
+        else:
+            image= self.transformation(image)
+        
+        return (image, cat_idx)
+class anchor_box:
+    def __init__(self, path='./dataset/train.npy',k =5):
+
+        self.k = k
+        path = np.load(path)
+        path = list(map(self.prerpocessing_xml, path))
+        box = []
+        for xml_name in path:
+            xml = open(xml_name, 'r')
+            tree = Et.parse(xml)
+            root = tree.getroot()
+            objects = root.findall("object")
+            for obj in objects:
+                bndbox = obj.find("bndbox")
+                xmin = float(bndbox.find("xmin").text)
+                xmax = float(bndbox.find("xmax").text)
+                ymin = float(bndbox.find("ymin").text)
+                ymax = float(bndbox.find("ymax").text)
+                box.append([xmax-xmin, ymax-ymin])
+
+        # if isinstance(box, np.ndarray):
+        #     pass
+        # else:
+        #     box = np.array(box, dtype=np.float32)
+        
+        # if box.shape[1] !=2:
+        #     box = self.prerpocess_box(box)
+        self.box = box
+        self.cand =np.array(random.sample(self.box, k))
+        self.box = np.array(self.box, dtype=np.float32)
+        self.idx = np.empty((len(self.box)))
+
+    def prerpocessing_xml(self, x):
+        return './Pascal_VOC_2012/VOCdevkit/VOC2012/Annotations/'+x+'.xml'
+    def prerpocess_box(self, box):
+        new_box = np.zeros((len(self.box),2))
+        new_box[:,0]=box[:,2] - box[:,0]
+        new_box[:,1]=box[:,3] - box[:,1]
+        return new_box
+    
+    def run(self):
+
+        for i in range(20):
+            self.calculate_idx()
+            self.calculate_cand_box()
+        self.sort()
+        
+        print("----------- anchor_box -----------")
+        print(self.cand[::-1])
+        np.save('./dataset/anchor_box.npy', self.cand[::-1])
+    
+    def sort(self):
+        
+        temp = self.cand.copy()
+        for i in range(self.k):
+            area = self.cand[:,0] * self.cand[:,1]
+            idx = np.argmax(area)
+            temp[i] = self.cand[idx]
+            area = np.delete(area, idx)
+            self.cand = np.delete(self.cand, idx, axis=0)
+        self.cand = temp
+
+    def calculate_cand_box(self):
+        for i in range(self.k):
+            idx = self.idx == i
+            box = self.box[idx]
+            cand_box = np.mean(box, axis=0)
+            self.cand[i,:] = cand_box
+
+
+    def calculate_idx(self):
+        for i,box in enumerate(self.box):
+            idx = self.caclulate_iou(box)
+            self.idx[i] = idx
+
+    def caclulate_iou(self, box):
+        w_min = np.minimum(box[0], self.cand[:,0])
+        h_min = np.minimum(box[1], self.cand[:,1])
+
+        area = w_min * h_min
+
+        area_box = box[0] * box[1]
+        cand_area = self.cand[:,0] * self.cand[:,1]
+
+        ious = area/(area_box + cand_area-area)
+
+        idx = np.argmax(ious)
+
+        return idx
+
+
+anchor = anchor_box()
+anchor.run()
+    
+    
 
 if __name__=="__main__":
     dataset = VOCDataset()
