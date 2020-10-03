@@ -89,7 +89,7 @@ class Darknet19_train:
         self.mini_batch = int(self.batch_size/division)
         self.device = torch.device(device)
         self.division = division
-        self.dataset = DataLoader(ImageNetDataset(), batch_size=self.mini_batch,shuffle=True,num_workers=-1)
+        self.dataset = DataLoader(ImageNetDataset(), batch_size=self.mini_batch,shuffle=True)
         self.va_dataset = DataLoader(ImageNetDataset(val_mode=True), batch_size=1, shuffle=True)
         self.network = Dakrnet19().to(self.device)
 
