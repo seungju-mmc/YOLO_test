@@ -115,7 +115,7 @@ class VOCDataset:
         self.transform = transforms.Compose(
             transforms.ColorJitter(brightness=0.75,hue=0.1,saturation=.75),
             transforms.ToTensor(),
-            normalize]
+            normalize
         )
         self.va_transform = transforms.Compose([
             transforms.ToTensor(),
