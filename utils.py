@@ -1,4 +1,5 @@
 from PIL import ImageDraw
+import torch.nn as nn
 import torch
 def img_show(data):
     image, label = data['image'], data['target']
