@@ -38,7 +38,7 @@ class Dakrnet19(nn.Module):
         self.conv13 = conv_batch(256,512)
        
         self.conv14 = conv_batch(512,1024)
-        self.conv15 = conv_batch(1024,512,kernel_size=1,padding=1)
+        self.conv15 = conv_batch(1024,512,kernel_size=1,padding=0)
         self.conv16 = conv_batch(512,1024)
         self.conv17 = conv_batch(1024,512, kernel_size=1,padding=0)
         self.conv18 = conv_batch(512,1024)
@@ -187,6 +187,7 @@ class Yolov2(nn.Module):
         self.catNum = catNum
         self.device = torch.device(device)
         self.buildNetwork()
+
     
     def buildNetwork(self):
         self.feature = Dakrnet19()
@@ -206,12 +207,55 @@ class Yolov2(nn.Module):
                 i.training=False
                 x.append(i)
             j+=1
-        k =[1,3,7,11]
+        k =[1,3,7,11,17]
         for j in k:
             x.insert(j, maxpool)
 
-        self.feature1 = nn.Sequential(*list(x)[:13])
-        self.feature2 = nn.Sequential(*list(x)[13:-3])
+        self.feature1 = nn.Sequential(*list(x)[:13]).to(self.device)
+        self.feature2 = nn.Sequential(*list(x)[13:-3]).to(self.device)
+        self.feature1.training = False
+        self.feature2.training = False
+
+        self.conv1 =conv_batch(1024,1024)
+        self.conv2 = conv_batch(1024,1024)
+        self.conv3 = conv_batch(1024+512*4,1024)
+        self.output = conv_batch(1024, self.aSize*(5+self.catNum), is_linear=True)
+
+    def _train(self):
+        self.feature1.eval()
+        self.feature2.eval()
+
+        self.conv1.train()
+        self.conv2.train()
+        self.conv3.train()
+        self.output.train()
+    
+    def _eval(self):
+
+        self.feature1.eval()
+        self.feature2.eval()
+
+        self.conv1.eval()
+        self.conv2.eval()
+        self.conv3.eval()
+        self.output.eval()
+        
+    def forward(self, x):
+        z = self.feature1(x)
+        shape = z.shape
+        print(self.feature2)
+        y = self.feature2(z)
+        y = self.conv1(y)
+        y = self.conv2(y)
+
+        z = z.view((shape[0], shape[1]*4, int(shape[2]/2), int(shape[3]/2)))
+        y = torch.cat((y,z), dim=1)
+        y = self.conv3(y)
+        output = self.output(y)
+
+        return output
+
+
 
 
 
