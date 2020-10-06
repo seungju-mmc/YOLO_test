@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
+from utils import changeEvalMode
 
 
 def conv_batch(in_num, out_num, kernel_size=3, padding=1, stride=1, eps=1e-5, momentum=0.1, negative_slope=0.1,is_linear=False):
@@ -47,6 +48,21 @@ class Dakrnet19(nn.Module):
         self.linear = nn.Linear(1024,1000)
 #         self.softmax = nn.Softmax()
 
+    def eval(self):
+        super(Dakrnet19, self).eval()
+        for i in self.children():
+            if isinstance(i, nn.MaxPool2d):
+                pass
+            else:
+                i.track_running_stats = False
+    
+    def train(self):
+        super(Dakrnet19, self).train()
+        for i in self.children():
+            if isinstance(i, nn.MaxPool2d):
+                pass
+            else:
+                i.track_running_stats = True
 
     def forward(self, x):
         x1 = self.conv1(x)
@@ -125,7 +141,7 @@ class Darknet19_train:
             t_Prec = []
             n = 0
             for data in self.dataset:
-                self.network.train()
+                self.network = self.network.train()
                 image, label = data[0].to(self.device), data[1].to(self.device)
 #                 hypo = parallel_model(self.network, image, output_device = 0, device_ids=[0,1,2,3])
                 hypo = self.network.forward(image)
@@ -151,7 +167,7 @@ class Darknet19_train:
                 
                 if step % print_interval ==0 and n==0:
                     with torch.no_grad():
-                        self.network.eval()
+                        self.network = self.network.eval()
                         k = 0
                         for val_data in self.val_dataset:
                             val_image, val_label = val_data[0].to(self.device), val_data[1].to(self.device)
@@ -190,18 +206,18 @@ class Yolov2(nn.Module):
 
     
     def buildNetwork(self):
-        self.feature = Dakrnet19()
-        self.feature.load_state_dict(torch.load('./dataset/Darknet19.pth', map_location=self.device))
+        feature = Dakrnet19()
+        feature.load_state_dict(torch.load('./dataset/Darknet19.pth', map_location=self.device))
         j = 0
         x = []
-        for i in self.feature.children():
+        for i in feature.children():
             if j == 0:
                 maxpool = i
             else:
                 i_list = []
                 for ii in i.children():
-                    if isinstance(ii, torch.nn.BatchNorm2d):
-                        ii.track_running_stats = False
+                    # if isinstance(ii, torch.nn.BatchNorm2d):
+                    #     ii.affine = False
                     i_list.append(ii)
                 i = nn.Sequential(*list(i_list))
                 i.training=False
@@ -221,29 +237,38 @@ class Yolov2(nn.Module):
         self.conv3 = conv_batch(1024+512*4,1024)
         self.output = conv_batch(1024, self.aSize*(5+self.catNum), is_linear=True)
 
-    def _train(self):
-        self.feature1.eval()
-        self.feature2.eval()
 
+    def train(self):
         self.conv1.train()
         self.conv2.train()
         self.conv3.train()
         self.output.train()
+
+
     
-    def _eval(self):
+    def eval(self):
+        # changeEvalMode(self.conv1)
+        # changeEvalMode(self.conv2)
+        # changeEvalMode(self.conv3)
+        # changeEvalMode(self.output)
 
-        self.feature1.eval()
-        self.feature2.eval()
-
+        # for i in self.feature1.children():
+        #     if isinstance(i, nn.Sequential):
+        #         for j in i.children():
+        #             if isinstance(j, nn.BatchNorm2d):
+        #                 j
+        # for i in self.conv1.children():
+        #     if isinstance(i, nn.BatchNorm2d):
+        #         i
         self.conv1.eval()
         self.conv2.eval()
         self.conv3.eval()
         self.output.eval()
+
         
     def forward(self, x):
         z = self.feature1(x)
         shape = z.shape
-        print(self.feature2)
         y = self.feature2(z)
         y = self.conv1(y)
         y = self.conv2(y)

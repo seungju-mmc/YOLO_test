@@ -1,0 +1,157 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
+import torch.nn as nn
+
+def calculate_ious(boxes, box, wh=False,xywh=False):
+    """
+    boxes have the shape (x0, y0, x1,y1) *n
+    box has the shape (x0, y0, x1,y1)
+    if wh is True,
+    boxes have the shape (w,h),
+    box has the shape(x0,y0,x1,y1)
+    """
+    
+
+    if wh:
+        w_ = (box[2]-box[0])
+        h_ = (box[3]-box[1])
+
+        area1 = w_ * h_
+        area2 = boxes[:,0] * boxes[:,1]
+
+        w_min = torch.min(boxes[:,0], w_)
+        h_min = torch.min(boxes[:,1], h_)
+
+        intersection = w_min * h_min
+
+        iou = (intersection)/(area1 + area2 - intersection +1e-3)
+    else:
+        if xywh:
+            tx0 = boxes[:,0] - boxes[:,2]/2
+            ty0 = boxes[:,1] - boxes[:,3]/2
+            tx1 = boxes[:,0] + boxes[:,2]/2
+            ty1 = boxes[:,1] + boxes[:,3]/2
+        else:
+            tx0,ty0,tx1,ty1 = boxes[:,0], boxes[:,1], boxes[:,2], boxes[:,3]
+        
+
+        x0,y0,x1,y1 = box[0], box[1], box[2], box[3]
+        
+
+        area1 = (x1-x0) * (y1-y0)
+        area2 = (tx1-tx0) * (ty1-ty0)
+
+        xmax = torch.min(x1, tx1)
+        ymax = torch.min(y1, ty1)
+        xmin = torch.max(x0, tx0)
+        ymin = torch.max(y0, ty0)
+
+        wid = torch.clamp(xmax - xmin, min=0)
+        hei = torch.clamp(ymax - ymin, min=0)
+        intersection = wid * hei
+        iou = intersection/(area1+area2-intersection+1e-3)
+    
+    iou = torch.clamp(iou, min=0)
+    return iou
+
+
+
+def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,threshold=0.6,\
+    catNum=20, anchor_box=np.load('./dataset/anchor_box.npy'), img_size=416):
+
+    
+    grid_size = y_preds.shape[2]
+    batch_size = y_preds.shape[0]
+    anchor_size = len(anchor_box)
+    reduction = grid_size/img_size
+    total_index = int(grid_size**2 * anchor_size)
+
+    OFFSET = torch.zeros((grid_size, grid_size, anchor_size, 2)).float()
+
+    for i in range(grid_size):
+        for j in range(grid_size):
+            OFFSET[i,j,:,:] += torch.tensor([j,i]).float()
+    
+
+
+
+
+    anchor_box *= grid_size
+    anchor_box = torch.tensor(anchor_box).to(device).float()
+    y_preds = y_preds.permute(0,2,3,1) # (B,H,W,C)
+    y_preds = y_preds.view((batch_size, grid_size, grid_size, anchor_size,  5+catNum))
+
+    predXY = y_preds[:,:,:,:,:2].sigmoid() + OFFSET
+    predXY = predXY.view((-1,2))
+    predWH = y_preds[:,:,:,:,2:4].exp()
+    predWH = predWH * anchor_box
+    predWH = predWH.view((-1,2))
+    predConfidenc = y_preds[:,:,:,:,4:5].sigmoid()
+    predConfidenc = predConfidenc.view((-1,1))
+    predCat = y_preds[:,:,:,:,5:].contiguous()
+    predCat = predCat.view((-1,20))
+    crossentropy = nn.CrossEntropyLoss()
+
+    xy_loss, wh_loss, cf_loss, cat_loss = 0,0,0,0
+
+
+    for i, label in enumerate(labels):
+
+        
+        boxes = label['boxes'] * reduction #x0, y0, x1, y1 in grid scale
+        cats = label['category']
+
+        batchXY = predXY[i*total_index:(i+1)*total_index, :]
+        batchWH = predWH[i*total_index:(i+1)*total_index, :]
+        batchBox = torch.cat((batchXY, batchWH), dim=1)
+        batchConfid = predConfidenc[i*total_index:(i+1)*total_index,:]
+        objmask = torch.zeros_like(batchConfid).view(-1)
+        batchCat = predCat[i*total_index:(i+1)*total_index,:]
+        for box, cat in zip(boxes, cats):
+            x_true, y_true = (box[0] + box[2])/2, (box[1]+box[3])/2 
+            x_ind, y_ind = x_true.long(), y_true.long()
+            anchorIous = calculate_ious(anchor_box, box, wh=True)
+            anchorTrueIndex = torch.argmax(anchorIous)
+            index = y_ind * grid_size * anchor_size + x_ind * anchor_size + anchorTrueIndex
+            selectedXY, selectedWH, selectedConfid, selectedCat = batchXY[index], batchWH[index], batchConfid[index], batchCat[index]
+
+            ious = calculate_ious(batchBox, box, xywh=True)
+            objDectInd= (ious>threshold).float()
+            objmask+= objDectInd
+            objmask[index] +=1
+
+            xy = torch.stack((x_true,y_true), dim=0)
+            xy_loss += (selectedXY-xy).pow(2).sum()
+
+            w,h = box[2]-box[0], box[3]-box[1]
+            wh = torch.stack((w,h),dim=0).sqrt()
+            selectedWH = selectedWH.sqrt()
+            wh_loss += (selectedWH-wh).pow(2).sum()
+
+            cf_loss +=(selectedConfid - ious[index]).pow(2).sum()
+            cat_loss += crossentropy(selectedCat.view((1,20)), cat.view(1))
+        
+        noobjInd = objmask < 1
+        noobjConfid = batchConfid[noobjInd]
+        cf_loss += noobjConfid.pow(2).sum()
+    
+
+    return (xy_loss, wh_loss, cf_loss, cat_loss)
+    
+        
+
+
+
+
+
+
+            
+
+
+
+
+
+

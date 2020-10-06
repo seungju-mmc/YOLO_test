@@ -4,6 +4,7 @@ import numpy as np
 from network import Yolov2
 from Dataset import VOCDataset
 from utils import img_show, get_optimizer, parallel_model
+from loss import calculate_loss
 
 
 class Yolov2Trainer:
@@ -19,7 +20,7 @@ class Yolov2Trainer:
 
         if load_path !=None:
             self.network.load_state_dict(torch.load(load_path, map_location=self.device))
-        self.network._train()
+        self.network.train()
 
         parm = {}
         parm['name'] = 'sgd'
@@ -51,22 +52,27 @@ class Yolov2Trainer:
             np.random.shuffle(total_num)
             index = total_num.copy()
             for i in range(step_per_epoch):
+                self.network.train()
                 ind = index[:self.mini_batch].copy()
                 index = index[self.mini_batch:]
                 batch_img, batch_label = [],[]
                 for j in ind:
                     data = self.dataset[int(j)]
-                    img, label = data['image'], data['target']
+                    img, label = data['image'].to(self.device), data['target']
                     batch_img.append(img)
                     batch_label.append(label)
                 
                 batch_img = torch.stack(batch_img, dim=0).to(self.device)
                 y_preds = self.network.forward(batch_img)
+
+                loss = calculate_loss(y_preds, batch_label, self.device)
+
                 print(1)
+
                 
 
 if __name__=="__main__":
-    trainer = Yolov2Trainer(batch_size=1)
+    trainer = Yolov2Trainer(batch_size=8)
 
     trainer.run()
 
