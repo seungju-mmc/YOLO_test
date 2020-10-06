@@ -261,6 +261,6 @@ class Yolov2(nn.Module):
 
                         
 if __name__ == "__main__":
-    # darknet19 = Darknet19_train(batch_size=128,device="cuda:3",burn_in=False,load_path='./dataset/Darknet19.pth')
-    # darknet19.run()
-    test = Yolov2()
+     darknet19 = Darknet19_train(batch_size=128,device="cuda:3",burn_in=False,load_path='./dataset/Darknet19.pth')
+     darknet19.run()
+   # test = Yolov2()
