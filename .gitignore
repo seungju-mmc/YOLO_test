@@ -6,3 +6,5 @@ Pascal_VOC_2012/*
 *.vscode
 *.xml
 *.ipynb
+*.ipynb_checkpoints
+*.pth
