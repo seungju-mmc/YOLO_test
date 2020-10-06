@@ -42,30 +42,31 @@ class Dakrnet19(nn.Module):
         self.conv16 = conv_batch(512,1024)
         self.conv17 = conv_batch(1024,512, kernel_size=1,padding=0)
         self.conv18 = conv_batch(512,1024)
-        self.avg_pool =  nn.AdaptiveAvgPool2d((1,1))
+        self.avg_pool = nn.AdaptiveAvgPool2d((1,1))
         self.flatten = nn.Flatten()
         self.linear = nn.Linear(1024,1000)
 #         self.softmax = nn.Softmax()
-    
+
+
     def forward(self, x):
         x1 = self.conv1(x)
-        x2 = self.maxpool(x1)
+        x2 = self.maxpool1(x1)
         x3 = self.conv2(x2)
-        x4 = self.maxpool(x3)
+        x4 = self.maxpool2(x3)
         x5 = self.conv3(x4)
         x6 = self.conv4(x5)
         x7 = self.conv5(x6)
-        x8 = self.maxpool(x7)
+        x8 = self.maxpool3(x7)
         x9 = self.conv6(x8)
         x10 = self.conv7(x9)
         x11 = self.conv8(x10)
-        x12 = self.maxpool(x11)
+        x12 = self.maxpool4(x11)
         x13 = self.conv9(x12)
         x14 = self.conv10(x13)
         x15 = self.conv11(x14)
         x16 = self.conv12(x15)
         x17 = self.conv13(x16)
-        x18 = self.maxpool(x17)
+        x18 = self.maxpool5(x17)
         x19 = self.conv14(x18)
         x20 = self.conv15(x19)
         x21 = self.conv16(x20)
@@ -178,7 +179,44 @@ class Darknet19_train:
                     t_Prec = []
             save_path = './dataset/Darknet19.pth'
             torch.save(self.network.state_dict(), save_path)
+
+class Yolov2(nn.Module):
+    def __init__(self, aSize=5, catNum=20, device="cpu"):
+        super(Yolov2, self).__init__()
+        self.aSize = aSize
+        self.catNum = catNum
+        self.device = torch.device(device)
+        self.buildNetwork()
+    
+    def buildNetwork(self):
+        self.feature = Dakrnet19()
+        self.feature.load_state_dict(torch.load('./dataset/Darknet19.pth', map_location=self.device))
+        j = 0
+        x = []
+        for i in self.feature.children():
+            if j == 0:
+                maxpool = i
+            else:
+                i_list = []
+                for ii in i.children():
+                    if isinstance(ii, torch.nn.BatchNorm2d):
+                        ii.track_running_stats = False
+                    i_list.append(ii)
+                i = nn.Sequential(*list(i_list))
+                i.training=False
+                x.append(i)
+            j+=1
+        k =[1,3,7,11]
+        for j in k:
+            x.insert(j, maxpool)
+
+        self.feature1 = nn.Sequential(*list(x)[:13])
+        self.feature2 = nn.Sequential(*list(x)[13:-3])
+
+
+
                         
 if __name__ == "__main__":
-    darknet19 = Darknet19_train(batch_size=128,device="cuda:3",burn_in=False,load_path='./dataset/Darknet19.pth')
-    darknet19.run()
+    # darknet19 = Darknet19_train(batch_size=128,device="cuda:3",burn_in=False,load_path='./dataset/Darknet19.pth')
+    # darknet19.run()
+    test = Yolov2()

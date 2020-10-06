@@ -16,6 +16,8 @@ from PIL import Image,ImageDraw
 import random
 def img_show(x):
     image, label = x['image'], x['target']
+    if torch.is_tensor(image):
+        image = TF.to_pil_image(image)
     image_draw = ImageDraw.Draw(image)
     boxes = label['boxes']
     for box in boxes:
@@ -113,13 +115,11 @@ class VOCDataset:
                                      std=[0.229, 0.224, 0.225])
 
         self.transform = transforms.Compose(
-            transforms.ColorJitter(brightness=0.75,hue=0.1,saturation=.75),
-            transforms.ToTensor(),
-            normalize
+            [transforms.ColorJitter(brightness=0.75,hue=0.1,saturation=.75),
+            transforms.ToTensor()]
         )
         self.va_transform = transforms.Compose([
-            transforms.ToTensor(),
-            normalize
+            transforms.ToTensor()
         ])
 
     def __getitem__(self, idx):
