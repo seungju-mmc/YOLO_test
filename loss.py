@@ -129,6 +129,8 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
             anchorIous = calculate_ious(anchor_box, box, wh=True)
             anchorTrueIndex = torch.argmax(anchorIous)
             index = y_ind * grid_size * anchor_size + x_ind * anchor_size + anchorTrueIndex
+            if index > total_index:
+                continue
             selectedXY, selectedWH, selectedConfid, selectedCat = batchXY[index], batchWH[index], batchConfid[index], batchCat[index]
 
             ious = calculate_ious(batchBox, box, xywh=True)
