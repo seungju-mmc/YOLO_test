@@ -4,6 +4,28 @@ import numpy as np
 import torch.nn.functional as F
 
 
+class Reorg(nn.Module):
+    def __init__(self, stride=2):
+        super(Reorg, self).__init__()
+        self.stride = stride
+
+    def forward(self, x):
+        stride = self.stride
+        assert (x.data.dim() == 4)
+        B = x.data.size(0)
+        C = x.data.size(1)
+        H = x.data.size(2)
+        W = x.data.size(3)
+        assert (H % stride == 0)
+        assert (W % stride == 0)
+        ws = stride
+        hs = stride
+        x = x.view(B, C, int(H / hs), hs, int(W / ws), ws).transpose(3, 4).contiguous()
+        x = x.view(B, C, int(H / hs * W / ws), hs * ws).transpose(2, 3).contiguous()
+        x = x.view(B, C, int(hs * ws), int(H / hs), int(W / ws)).transpose(1, 2).contiguous()
+        x = x.view(B, hs * ws * C, int(H / hs), int(W / ws))
+        return x
+
 def conv_batch(in_num, out_num, kernel_size=3, padding=1, stride=1, eps=1e-5, momentum=0.1, negative_slope=0.1,is_linear=False):
     if is_linear:
         temp = nn.Sequential(
@@ -217,14 +239,17 @@ class Yolov2(nn.Module):
 
         self.conv1 =conv_batch(1024,1024)
         self.conv2 = conv_batch(1024,1024)
-        self.conv3 = conv_batch(1024+512*4,1024)
-        self.output = conv_batch(1024, self.aSize*(5+self.catNum), is_linear=True)
+        self.conv3 = conv_batch(512,64, kernel_size=1, padding=0)
+        self.reorg = Reorg()
+        self.conv4 = conv_batch(1024+64*4,1024)
+        self.output = conv_batch(1024, self.aSize*(5+self.catNum), is_linear=True, kernel_size=1, padding=0)
 
 
     def train(self):
         self.conv1.train()
         self.conv2.train()
         self.conv3.train()
+        self.conv4.train()
         self.output.train()
 
 
@@ -233,6 +258,7 @@ class Yolov2(nn.Module):
         self.conv1.eval()
         self.conv2.eval()
         self.conv3.eval()
+        self.conv4.eval()
         self.output.eval()
         for i in self.conv1.children():
 
@@ -249,14 +275,10 @@ class Yolov2(nn.Module):
             y = self.feature2(z)
         y = self.conv1(y)
         y = self.conv2(y)
-
-        z1 = z[:,:,:int(shape[2]/2),:int(shape[3]/2)]
-        z2 = z[:,:,int(shape[2]/2):, :int(shape[3]/2)]
-        z3 = z[:,:,:int(shape[2]/2),int(shape[3]/2):]
-        z4 = z[:,:,int(shape[2]/2):, int(shape[3]/2):]
-        z = torch.cat((z1,z2,z3,z4), dim=1)
+        z = self.conv3(z)
+        z = self.reorg(z)
         y = torch.cat((y,z), dim=1)
-        y = self.conv3(y)
+        y = self.conv4(y)
         output = self.output(y)
 
         return output

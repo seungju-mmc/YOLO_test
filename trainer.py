@@ -5,7 +5,7 @@ import datetime
 from torch.utils.tensorboard import SummaryWriter
 from network import Yolov2
 from Dataset import VOCDataset
-from utils import img_show, get_optimizer, parallel_model
+from utils import img_show, get_optimizer, parallel_model, calculate_global_norm
 from loss import calculate_loss
 
 
@@ -98,6 +98,12 @@ class Yolov2Trainer:
                     step +=1
                     self.lr_scheduling(step)
                     n = 0
+                    # print(calculate_global_norm(self.network.output))
+                    # print(calculate_global_norm(self.network.conv3))
+                    # print(calculate_global_norm(self.network.conv2))
+                    # print(calculate_global_norm(self.network.conv1))
+
+                    
                     self.optimizer.step()
                     self.optimizer.zero_grad()
 
@@ -127,7 +133,7 @@ class Yolov2Trainer:
                 
 
 if __name__=="__main__":
-    trainer = Yolov2Trainer(batch_size=64, device="cuda:2")
+    trainer = Yolov2Trainer(batch_size=16, device="cpu")
 
     trainer.run()
 

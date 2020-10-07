@@ -32,3 +32,10 @@ def parallel_model(module, inp, device_ids, output_device=None):
     replicas = replicas[:len(inputs)]
     outputs = nn.parallel.parallel_apply(replicas, inputs)
     return nn.parallel.gather(outputs, output_device)
+
+def calculate_global_norm(network):
+    total_norm = 0
+    for p in network.parameters():
+        param_norm = p.grad.data.norm(2)
+        total_norm += param_norm.item()**2
+    return total_norm
