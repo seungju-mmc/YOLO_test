@@ -16,8 +16,9 @@ def calculate_ious(boxes, box, wh=False,xywh=False):
     
 
     if wh:
-        w_ = (box[2]-box[0])
-        h_ = (box[3]-box[1])
+        w_ = box[2]-box[0]
+
+        h_ = box[3]-box[1]
 
         area1 = w_ * h_
         area2 = boxes[:,0] * boxes[:,1]
@@ -69,11 +70,11 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
     reduction = grid_size/img_size
     total_index = int(grid_size**2 * anchor_size)
 
-    OFFSET = torch.zeros((grid_size, grid_size, anchor_size, 2)).float()
+    OFFSET = torch.zeros((grid_size, grid_size, anchor_size, 2)).float().to(device)
 
     for i in range(grid_size):
         for j in range(grid_size):
-            OFFSET[i,j,:,:] += torch.tensor([j,i]).float()
+            OFFSET[i,j,:,:] += torch.tensor([j,i]).float().to(device)
     
 
 
@@ -85,15 +86,24 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
     y_preds = y_preds.view((batch_size, grid_size, grid_size, anchor_size,  5+catNum))
 
     predXY = y_preds[:,:,:,:,:2].sigmoid() + OFFSET
-    predXY = predXY.view((-1,2))
-    k = y_preds[:,:,:,:,2:4]
+    predXY = predXY.permute(4,0,1,2,3)
+    predXY = predXY.view((2,-1))
+    predXY = predXY.permute((1,0))
+    
     predWH = torch.exp(y_preds[:,:,:,:,2:4])
     predWH = predWH * anchor_box
-    predWH = predWH.view((-1,2))
+    predWH = predWH.permute(4,0,1,2,3)
+    predWH = predWH.view((2,-1))
+    predWH = predWH.permute(1,0)
+
     predConfidenc = y_preds[:,:,:,:,4:5].sigmoid()
-    predConfidenc = predConfidenc.view((-1,1))
+    predConfidenc = predConfidenc.permute(4,0,1,2,3)
+    predConfidenc = predConfidenc.view((1,-1))
+    predConfidenc = predConfidenc.permute(1,0)
     predCat = y_preds[:,:,:,:,5:].contiguous()
-    predCat = predCat.view((-1,20))
+    predCat = predCat.permute(4,0,1,2,3)
+    predCat = predCat.view((20,-1))
+    predCat = predCat.permute(1,0)
     crossentropy = nn.CrossEntropyLoss()
 
     xy_loss, wh_loss, cf_loss, cat_loss = 0,0,0,0
@@ -112,6 +122,8 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
         objmask = torch.zeros_like(batchConfid).view(-1)
         batchCat = predCat[i*total_index:(i+1)*total_index,:]
         for box, cat in zip(boxes, cats):
+            box = box.to(device).float()
+            cat = cat.to(device)
             x_true, y_true = (box[0] + box[2])/2, (box[1]+box[3])/2 
             x_ind, y_ind = x_true.long(), y_true.long()
             anchorIous = calculate_ious(anchor_box, box, wh=True)

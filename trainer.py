@@ -19,6 +19,7 @@ class Yolov2Trainer:
         self.division = division
         self.network = Yolov2(device=device)
         self.device = torch.device(device)
+        self.network = self.network.to(self.device)
 
         if load_path !=None:
             self.network.load_state_dict(torch.load(load_path, map_location=self.device))
@@ -124,7 +125,7 @@ class Yolov2Trainer:
                 
 
 if __name__=="__main__":
-    trainer = Yolov2Trainer(batch_size=4)
+    trainer = Yolov2Trainer(batch_size=8, device="cpu")
 
     trainer.run()
 
