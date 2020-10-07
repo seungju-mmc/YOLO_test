@@ -78,7 +78,7 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
 
 
 
-
+    anchor_box = anchor_box.copy()
     anchor_box *= grid_size
     anchor_box = torch.tensor(anchor_box).to(device).float()
     y_preds = y_preds.permute(0,2,3,1) # (B,H,W,C)
@@ -86,7 +86,8 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
 
     predXY = y_preds[:,:,:,:,:2].sigmoid() + OFFSET
     predXY = predXY.view((-1,2))
-    predWH = y_preds[:,:,:,:,2:4].exp()
+    k = y_preds[:,:,:,:,2:4]
+    predWH = torch.exp(y_preds[:,:,:,:,2:4])
     predWH = predWH * anchor_box
     predWH = predWH.view((-1,2))
     predConfidenc = y_preds[:,:,:,:,4:5].sigmoid()
@@ -137,9 +138,10 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
         noobjInd = objmask < 1
         noobjConfid = batchConfid[noobjInd]
         cf_loss += noobjConfid.pow(2).sum()
+        total_loss = xy_loss + wh_loss + cf_loss +cat_loss
     
 
-    return (xy_loss, wh_loss, cf_loss, cat_loss)
+    return (total_loss,xy_loss, wh_loss, cf_loss, cat_loss)
     
         
 

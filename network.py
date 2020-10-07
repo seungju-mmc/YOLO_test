@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
-from utils import changeEvalMode
 
 
 def conv_batch(in_num, out_num, kernel_size=3, padding=1, stride=1, eps=1e-5, momentum=0.1, negative_slope=0.1,is_linear=False):
@@ -50,19 +49,9 @@ class Dakrnet19(nn.Module):
 
     def eval(self):
         super(Dakrnet19, self).eval()
-        for i in self.children():
-            if isinstance(i, nn.MaxPool2d):
-                pass
-            else:
-                i.track_running_stats = False
     
     def train(self):
         super(Dakrnet19, self).train()
-        for i in self.children():
-            if isinstance(i, nn.MaxPool2d):
-                pass
-            else:
-                i.track_running_stats = True
 
     def forward(self, x):
         x1 = self.conv1(x)
@@ -72,11 +61,7 @@ class Dakrnet19(nn.Module):
         x5 = self.conv3(x4)
         x6 = self.conv4(x5)
         x7 = self.conv5(x6)
-        x8 = self.maxpool(x7)
-        x9 = self.conv6(x8)
-        x10 = self.conv7(x9)
-        x11 = self.conv8(x10)
-        x12 = self.maxpool(x11)
+        x8 = self.maxpool(x7)              
         x13 = self.conv9(x12)
         x14 = self.conv10(x13)
         x15 = self.conv11(x14)
@@ -216,8 +201,6 @@ class Yolov2(nn.Module):
             else:
                 i_list = []
                 for ii in i.children():
-                    # if isinstance(ii, torch.nn.BatchNorm2d):
-                    #     ii.affine = False
                     i_list.append(ii)
                 i = nn.Sequential(*list(i_list))
                 i.training=False
@@ -247,23 +230,16 @@ class Yolov2(nn.Module):
 
     
     def eval(self):
-        # changeEvalMode(self.conv1)
-        # changeEvalMode(self.conv2)
-        # changeEvalMode(self.conv3)
-        # changeEvalMode(self.output)
-
-        # for i in self.feature1.children():
-        #     if isinstance(i, nn.Sequential):
-        #         for j in i.children():
-        #             if isinstance(j, nn.BatchNorm2d):
-        #                 j
-        # for i in self.conv1.children():
-        #     if isinstance(i, nn.BatchNorm2d):
-        #         i
         self.conv1.eval()
         self.conv2.eval()
         self.conv3.eval()
         self.output.eval()
+        for i in self.conv1.children():
+
+            if isinstance(i, nn.BatchNorm2d):
+                i
+                break
+
 
         
     def forward(self, x):
@@ -273,7 +249,11 @@ class Yolov2(nn.Module):
         y = self.conv1(y)
         y = self.conv2(y)
 
-        z = z.view((shape[0], shape[1]*4, int(shape[2]/2), int(shape[3]/2)))
+        z1 = z[:,:,:int(shape[2]/2),:int(shape[3]/2)]
+        z2 = z[:,:,int(shape[2]/2):, :int(shape[3]/2)]
+        z3 = z[:,:,:int(shape[2]/2),int(shape[3]/2):]
+        z4 = z[:,:,int(shape[2]/2):, int(shape[3]/2):]
+        z = torch.cat((z1,z2,z3,z4), dim=1)
         y = torch.cat((y,z), dim=1)
         y = self.conv3(y)
         output = self.output(y)

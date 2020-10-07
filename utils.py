@@ -32,10 +32,3 @@ def parallel_model(module, inp, device_ids, output_device=None):
     replicas = replicas[:len(inputs)]
     outputs = nn.parallel.parallel_apply(replicas, inputs)
     return nn.parallel.gather(outputs, output_device)
-
-def changeEvalMode(module):
-    for i in module.children():
-        if isinstance(i, nn.BatchNorm2d):
-            # i.track_running_stats = False
-            i.affine = False
-            print(i)
