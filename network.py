@@ -243,9 +243,10 @@ class Yolov2(nn.Module):
 
         
     def forward(self, x):
-        z = self.feature1(x)
-        shape = z.shape
-        y = self.feature2(z)
+        with torch.no_grad():
+            z = self.feature1(x)
+            shape = z.shape
+            y = self.feature2(z)
         y = self.conv1(y)
         y = self.conv2(y)
 
