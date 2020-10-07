@@ -65,6 +65,7 @@ class Yolov2Trainer:
         total_num = np.linspace(0, len(self.dataset)-1, len(self.dataset))
         n = 0
         l = 0
+        print_interval = 10
         for epoch in range(self.epoch):
             np.random.shuffle(total_num)
             index = total_num.copy()
@@ -102,7 +103,7 @@ class Yolov2Trainer:
 
                     
                 
-                if step % 1 == 0:
+                if step % print_interval == 0:
                     Loss = torch.stack(Loss, dim=0).cpu().detach().numpy().mean()
                     xyLoss = torch.stack(xyLoss, dim=0).cpu().detach().numpy().mean()
                     whLoss = torch.stack(whLoss, dim = 0).cpu().detach().numpy().mean()
@@ -115,7 +116,8 @@ class Yolov2Trainer:
                     Loss = []
                     xyLoss, whLoss,confLoss,catLoss = [], [],[],[]
 
-
+                if step > 1000:
+                    print_interval=100
 
                 
 
