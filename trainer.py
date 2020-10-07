@@ -27,6 +27,7 @@ class Yolov2Trainer:
         parm = {}
         parm['name'] = 'sgd'
         parm['learning_rate'] = lr
+        self.lr = lr
         parm['weight_decay'] = weight_decay
         parm['momentum'] = momentum
         self.optimizer= get_optimizer(parm, self.network)
@@ -43,7 +44,7 @@ class Yolov2Trainer:
 
     def lr_scheduling(self,step):
         if(step < 1000) and (self.burn_in):
-            lr = 1e-3 * (step/1000)**4
+            lr = self.lr * (step/1000)**4
             for g in self.optimizer.param_groups:
                 g['lr'] = lr
     
@@ -92,12 +93,13 @@ class Yolov2Trainer:
                 total_loss.backward()
                 n+=1
                 if n == self.division:
-                    self.optimizer.step()
-                    self.optimizer.zero_grad()
-
                     step +=1
                     self.lr_scheduling(step)
                     n = 0
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+
+                    
                 
                 if step % 1 == 0:
                     Loss = torch.stack(Loss, dim=0).cpu().detach().numpy().mean()

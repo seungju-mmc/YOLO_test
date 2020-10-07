@@ -141,7 +141,7 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
         total_loss = xy_loss + wh_loss + cf_loss +cat_loss
     
 
-    return (total_loss,xy_loss, wh_loss, cf_loss, cat_loss)
+    return (total_loss/batch_size,xy_loss/batch_size, wh_loss/batch_size, cf_loss/batch_size, cat_loss/batch_size)
     
         
 
