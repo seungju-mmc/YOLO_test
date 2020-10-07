@@ -246,6 +246,8 @@ class Yolov2(nn.Module):
 
 
     def train(self):
+        #self.feature1.train()
+        #self.feature2.train()
         self.conv1.train()
         self.conv2.train()
         self.conv3.train()
@@ -260,24 +262,20 @@ class Yolov2(nn.Module):
         self.conv3.eval()
         self.conv4.eval()
         self.output.eval()
-        for i in self.conv1.children():
-
-            if isinstance(i, nn.BatchNorm2d):
-                i
-                break
+        
 
 
         
     def forward(self, x):
-        with torch.no_grad():
-            z = self.feature1(x)
-            shape = z.shape
-            y = self.feature2(z)
+        
+        z = self.feature1(x)
+        shape = z.shape
+        y = self.feature2(z)
         y = self.conv1(y)
         y = self.conv2(y)
         z = self.conv3(z)
         z = self.reorg(z)
-        y = torch.cat((y,z), dim=1)
+        y = torch.cat((z,y), dim=1)
         y = self.conv4(y)
         output = self.output(y)
 

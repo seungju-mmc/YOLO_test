@@ -65,10 +65,11 @@ class Yolov2Trainer:
         total_num = np.linspace(0, len(self.dataset)-1, len(self.dataset))
         n = 0
         l = 0
-        print_interval = 10
+        print_interval = 1
         for epoch in range(self.epoch):
             np.random.shuffle(total_num)
             index = total_num.copy()
+            self.optimizer.zero_grad()
             for i in range(step_per_epoch):
                 self.network.train()
                 ind = index[:self.mini_batch].copy()
@@ -109,15 +110,16 @@ class Yolov2Trainer:
 
                     
                 
-                if step % print_interval == 0:
+                if step % print_interval == 0 and n == 0:
                     Loss = torch.stack(Loss, dim=0).cpu().detach().numpy().mean()
                     xyLoss = torch.stack(xyLoss, dim=0).cpu().detach().numpy().mean()
                     whLoss = torch.stack(whLoss, dim = 0).cpu().detach().numpy().mean()
                     confLoss = torch.stack(confLoss, dim=0).cpu().detach().numpy().mean()
                     catLoss = torch.stack(catLoss,dim=0).cpu().detach().numpy().mean()
-
+                    for g in self.optimizer.param_groups:
+                        lr = g['lr']
                     #self.tensorboard((Loss, xyLoss, whLoss, confLoss,catLoss),step)
-                    print("Epoch : {:4d} // Step : {:5d} // Loss : {:.3f} // xyLoss : {:.3f} // whLoss : {:.3f} // confLoss : {:.3f} //catLoss : {:.3f}".format(epoch+1, step, Loss, xyLoss, whLoss, confLoss, catLoss))
+                    print("Epoch : {:4d} // Step : {:5d} // Loss : {:.3f} // xyLoss : {:.3f} // whLoss : {:.3f} // confLoss : {:.3f} //catLoss : {:.3f} // Learning rate : {:.5f}".format(epoch+1, step, Loss, xyLoss, whLoss, confLoss, catLoss,lr))
                     
                     Loss = []
                     xyLoss, whLoss,confLoss,catLoss = [], [],[],[]
@@ -128,12 +130,8 @@ class Yolov2Trainer:
                 
 
 
-
-
-                
-
 if __name__=="__main__":
-    trainer = Yolov2Trainer(batch_size=16, device="cpu")
+    trainer = Yolov2Trainer(batch_size=64, device="cuda:2",division=8)
 
     trainer.run()
 

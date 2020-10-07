@@ -60,7 +60,7 @@ def calculate_ious(boxes, box, wh=False,xywh=False):
 
 
 
-def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,threshold=0.6,\
+def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=1,threshold=0.6,\
     catNum=20, anchor_box=np.load('./dataset/anchor_box.npy'), img_size=416):
 
     
@@ -108,10 +108,8 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
 
     xy_loss, wh_loss, cf_loss, cat_loss = 0,0,0,0
 
-
-    for i, label in enumerate(labels):
-
-        
+    total_loss = 0
+    for i, label in enumerate(labels): 
         boxes = label['boxes'] * reduction #x0, y0, x1, y1 in grid scale
         cats = label['category']
 
@@ -142,8 +140,8 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
             xy_loss += (selectedXY-xy).pow(2).sum() * l_coord
 
             w,h = box[2]-box[0], box[3]-box[1]
-            wh = torch.stack((w,h),dim=0).sqrt()
-            selectedWH = selectedWH.sqrt()
+            wh = torch.stack((w,h),dim=0).pow(0.5)
+            selectedWH = selectedWH.pow(0.5)
             wh_loss += (selectedWH-wh).pow(2).sum() * l_coord
 
             cf_loss +=(selectedConfid - ious[index]).pow(2).sum() * l_confid
@@ -152,9 +150,8 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
         noobjInd = objmask < 1
         noobjConfid = batchConfid[noobjInd]
         cf_loss += noobjConfid.pow(2).sum() * l_noobj
-        total_loss = xy_loss + wh_loss + cf_loss +cat_loss
-    
 
+    total_loss=xy_loss + wh_loss+ cf_loss+cat_loss
     return (total_loss/batch_size,xy_loss/batch_size, wh_loss/batch_size, cf_loss/batch_size, cat_loss/batch_size)
     
         
