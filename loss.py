@@ -139,19 +139,19 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
             objmask[index] +=1
 
             xy = torch.stack((x_true,y_true), dim=0)
-            xy_loss += (selectedXY-xy).pow(2).sum()
+            xy_loss += (selectedXY-xy).pow(2).sum() * l_coord
 
             w,h = box[2]-box[0], box[3]-box[1]
             wh = torch.stack((w,h),dim=0).sqrt()
             selectedWH = selectedWH.sqrt()
-            wh_loss += (selectedWH-wh).pow(2).sum()
+            wh_loss += (selectedWH-wh).pow(2).sum() * l_coord
 
-            cf_loss +=(selectedConfid - ious[index]).pow(2).sum()
+            cf_loss +=(selectedConfid - ious[index]).pow(2).sum() * l_confid
             cat_loss += crossentropy(selectedCat.view((1,20)), cat.view(1))
         
         noobjInd = objmask < 1
         noobjConfid = batchConfid[noobjInd]
-        cf_loss += noobjConfid.pow(2).sum()
+        cf_loss += noobjConfid.pow(2).sum() * l_noobj
         total_loss = xy_loss + wh_loss + cf_loss +cat_loss
     
 
