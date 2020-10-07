@@ -16,8 +16,9 @@ def calculate_ious(boxes, box, wh=False,xywh=False):
     
 
     if wh:
-        w_ = (box[2]-box[0])
-        h_ = (box[3]-box[1])
+        w_ = box[2]-box[0]
+
+        h_ = box[3]-box[1]
 
         area1 = w_ * h_
         area2 = boxes[:,0] * boxes[:,1]
@@ -69,11 +70,11 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
     reduction = grid_size/img_size
     total_index = int(grid_size**2 * anchor_size)
 
-    OFFSET = torch.zeros((grid_size, grid_size, anchor_size, 2)).float()
+    OFFSET = torch.zeros((grid_size, grid_size, anchor_size, 2)).float().to(device)
 
     for i in range(grid_size):
         for j in range(grid_size):
-            OFFSET[i,j,:,:] += torch.tensor([j,i]).float()
+            OFFSET[i,j,:,:] += torch.tensor([j,i]).float().to(device)
     
 
 
@@ -112,6 +113,8 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
         objmask = torch.zeros_like(batchConfid).view(-1)
         batchCat = predCat[i*total_index:(i+1)*total_index,:]
         for box, cat in zip(boxes, cats):
+            box = box.to(device).float()
+            cat = cat.to(device)
             x_true, y_true = (box[0] + box[2])/2, (box[1]+box[3])/2 
             x_ind, y_ind = x_true.long(), y_true.long()
             anchorIous = calculate_ious(anchor_box, box, wh=True)
@@ -141,7 +144,7 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=0.5,
         total_loss = xy_loss + wh_loss + cf_loss +cat_loss
     
 
-    return (total_loss,xy_loss, wh_loss, cf_loss, cat_loss)
+    return (total_loss/batch_size,xy_loss/batch_size, wh_loss/batch_size, cf_loss/batch_size, cat_loss/batch_size)
     
         
 

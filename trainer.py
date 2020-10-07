@@ -19,6 +19,7 @@ class Yolov2Trainer:
         self.division = division
         self.network = Yolov2(device=device)
         self.device = torch.device(device)
+        self.network = self.network.to(self.device)
 
         if load_path !=None:
             self.network.load_state_dict(torch.load(load_path, map_location=self.device))
@@ -67,7 +68,7 @@ class Yolov2Trainer:
             np.random.shuffle(total_num)
             index = total_num.copy()
             for i in range(step_per_epoch):
-                self.network.train()
+                self.network.eval()
                 ind = index[:self.mini_batch].copy()
                 index = index[self.mini_batch:]
                 batch_img, batch_label = [],[]
@@ -92,11 +93,13 @@ class Yolov2Trainer:
                 total_loss.backward()
                 n+=1
                 if n == self.division:
+                    step+=1
+                    self.lr_scheduling(step)
                     self.optimizer.step()
                     self.optimizer.zero_grad()
 
-                    step +=1
-                    self.lr_scheduling(step)
+        
+                    
                     n = 0
                 
                 if step % 1 == 0:
@@ -122,7 +125,7 @@ class Yolov2Trainer:
                 
 
 if __name__=="__main__":
-    trainer = Yolov2Trainer(batch_size=4)
+    trainer = Yolov2Trainer(batch_size=64, device="cuda:2")
 
     trainer.run()
 
