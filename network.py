@@ -64,18 +64,14 @@ class Dakrnet19(nn.Module):
         self.conv16 = conv_batch(512,1024)
         self.conv17 = conv_batch(1024,512, kernel_size=1,padding=0)
         self.conv18 = conv_batch(512,1024)
-        self.linear = nn.Linear(1024,1000)
+        self.linear = conv_batch(1024,1000, kernel_size=1, padding=0,is_linear=True)
         self.avg_pool = nn.AdaptiveAvgPool2d((1,1))
         self.flatten = nn.Flatten()
 #         self.softmax = nn.Softmax()
 
-    def eval(self):
-        super(Dakrnet19, self).eval()
-    
-    def train(self):
-        super(Dakrnet19, self).train()
 
     def forward(self, x):
+        shape = x.shape
         x1 = self.conv1(x)
         x2 = self.maxpool(x1)
         x3 = self.conv2(x2)
@@ -83,7 +79,11 @@ class Dakrnet19(nn.Module):
         x5 = self.conv3(x4)
         x6 = self.conv4(x5)
         x7 = self.conv5(x6)
-        x8 = self.maxpool(x7)              
+        x8 = self.maxpool(x7)
+        x9 = self.conv6(x8)
+        x10 = self.conv7(x9)
+        x11 = self.conv8(x10)
+        x12 = self.maxpool(x11)
         x13 = self.conv9(x12)
         x14 = self.conv10(x13)
         x15 = self.conv11(x14)
@@ -97,10 +97,10 @@ class Dakrnet19(nn.Module):
         x23 = self.conv18(x22)
         x24 = self.linear(x23)
         x25 = self.avg_pool(x24)
-        x26 = self.flatten(x25)
+        x25 = x25.view(shape[0],1000)
         
 
-        return x26
+        return x25
 
 from torch.utils.data import Dataset, DataLoader
 from Dataset import ImageNetDataset
@@ -109,7 +109,6 @@ class Darknet19_train:
 
     def __init__(self, batch_size=128, epoch=10, lr=1e-1, weight_decay = 5e-4, momentum=0.9, device="cpu", division=1,burn_in = True,load_path=None):
         self.epoch = epoch
-        torch.backends.cudnn.benchmark=True
         self.batch_size = batch_size
         self.mini_batch = int(self.batch_size/division)
         self.device = torch.device(device)
@@ -149,11 +148,12 @@ class Darknet19_train:
             t_Prec = []
             n = 0
             for data in self.dataset:
-                self.network = self.network.train()
+                self.network.train()
                 image, label = data[0].to(self.device), data[1].to(self.device)
 #                 hypo = parallel_model(self.network, image, output_device = 0, device_ids=[0,1,2,3])
+                
                 hypo = self.network.forward(image)
-                loss = self.critieron(hypo, label)/self.division
+                loss = self.critieron(hypo, label)
                 loss.backward()
                 n +=1
                 if n == self.division:
@@ -175,7 +175,7 @@ class Darknet19_train:
                 
                 if step % print_interval ==0 and n==0:
                     with torch.no_grad():
-                        self.network = self.network.eval()
+                        self.network.eval()
                         k = 0
                         for val_data in self.val_dataset:
                             val_image, val_label = val_data[0].to(self.device), val_data[1].to(self.device)
@@ -188,7 +188,7 @@ class Darknet19_train:
                             Prec.append(precision.cpu().numpy())
                             Val_Loss.append(val_loss.cpu().numpy())
                             k+=1
-                            if k == 400:
+                            if k == 10:
                                 break
                             
                             
@@ -288,6 +288,6 @@ class Yolov2(nn.Module):
 
                         
 if __name__ == "__main__":
-     darknet19 = Darknet19_train(batch_size=128,device="cuda:3",burn_in=False,load_path='./dataset/Darknet19.pth')
+     darknet19 = Darknet19_train(batch_size=128,device="cuda:3",burn_in=True,division=2)
      darknet19.run()
    # test = Yolov2()
