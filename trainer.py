@@ -41,7 +41,7 @@ class Yolov2Trainer:
         self.eval_mode = eval_mode
         self.burn_in = burn_in
         date_time = datetime.datetime.now().strftime("%Y%m%d-%H-%M-%S")
-        self.writer =SummaryWriter('./dataset/tensorboard/'+date_time+'/')
+        #self.writer =SummaryWriter('./dataset/tensorboard/'+date_time+'/')
 
     def lr_scheduling(self,step):
         if(step < 1000) and (self.burn_in):
@@ -109,7 +109,7 @@ class Yolov2Trainer:
                     confLoss = torch.stack(confLoss, dim=0).cpu().detach().numpy().mean()
                     catLoss = torch.stack(catLoss,dim=0).cpu().detach().numpy().mean()
 
-                    self.tensorboard((Loss, xyLoss, whLoss, confLoss,catLoss),step)
+                    #self.tensorboard((Loss, xyLoss, whLoss, confLoss,catLoss),step)
                     print("Epoch : {:4d} // Step : {:5d} // Loss : {:3f} // xyLoss : {:3f} // whLoss : {:3f} // confLoss : {:3f} //catLoss : {:3f}".format(epoch+1, step, Loss, xyLoss, whLoss, confLoss, catLoss))
                     
                     Loss = []
