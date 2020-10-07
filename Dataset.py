@@ -207,7 +207,7 @@ class VOCDataset:
 class ImageNetDataset(Dataset):
     
     
-    def __init__(self, img_size=224, val_mode = False):
+    def __init__(self, img_size=256, val_mode = False):
         super(ImageNetDataset,self).__init__()
         
         self.cur_path = '/home/mmc-server3/Server/server2/seungju/YOLO/'
@@ -240,7 +240,7 @@ class ImageNetDataset(Dataset):
         crop = transforms.RandomCrop(int(img_size))
         colojiter = transforms.ColorJitter(brightness=.75,saturation=.75,hue=.1)
         
-        self.transformation = transforms.Compose([transforms.RandomResizedCrop(224),transforms.RandomHorizontalFlip()
+        self.transformation = transforms.Compose([transforms.RandomResizedCrop(img_size),transforms.RandomHorizontalFlip()
                                                   ,colojiter,transforms.ToTensor()])
         self.va_transformation = transforms.Compose([transforms.Resize([img_size,img_size]),transforms.ToTensor()])
         self.val_mode = val_mode

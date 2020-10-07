@@ -64,9 +64,9 @@ class Dakrnet19(nn.Module):
         self.conv16 = conv_batch(512,1024)
         self.conv17 = conv_batch(1024,512, kernel_size=1,padding=0)
         self.conv18 = conv_batch(512,1024)
+        self.linear = nn.Linear(1024,1000)
         self.avg_pool = nn.AdaptiveAvgPool2d((1,1))
         self.flatten = nn.Flatten()
-        self.linear = nn.Linear(1024,1000)
 #         self.softmax = nn.Softmax()
 
     def eval(self):
@@ -95,9 +95,10 @@ class Dakrnet19(nn.Module):
         x21 = self.conv16(x20)
         x22 = self.conv17(x21)
         x23 = self.conv18(x22)
-        x24 = self.avg_pool(x23)
-        x25 = self.flatten(x24)
-        x26 = self.linear(x25)
+        x24 = self.linear(x23)
+        x25 = self.avg_pool(x24)
+        x26 = self.flatten(x25)
+        
 
         return x26
 

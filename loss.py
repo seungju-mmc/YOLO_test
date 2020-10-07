@@ -148,6 +148,13 @@ def calculate_loss(y_preds, labels,device, l_coord = 5, l_confid=1, l_noobj=1,th
             cat_loss += crossentropy(selectedCat.view((1,20)), cat.view(1))
         
         noobjInd = objmask < 1
+        objInd = objmask>0
+        b = batchBox[objInd]
+        x0 = b[:,0] -b[:,2]/2
+        y0 = b[:,1] -b[:,3]/2
+        x1 = b[:,0] +b[:,2]/2
+        y1 = b[:,1] +b[:,3]/2
+        x = torch.stack((x0,y0,x1,y1),dim=1)
         noobjConfid = batchConfid[noobjInd]
         cf_loss += noobjConfid.pow(2).sum() * l_noobj
 
