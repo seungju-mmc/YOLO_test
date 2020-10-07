@@ -4,3 +4,4 @@ matplotlib
 opencv-python
 pillow==7.2.0
 wget
+tensorboard==2.3.0

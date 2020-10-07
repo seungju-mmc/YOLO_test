@@ -47,6 +47,11 @@ class Dakrnet19(nn.Module):
         self.linear = nn.Linear(1024,1000)
 #         self.softmax = nn.Softmax()
 
+    def eval(self):
+        super(Dakrnet19, self).eval()
+    
+    def train(self):
+        super(Dakrnet19, self).train()
 
     def forward(self, x):
         x1 = self.conv1(x)
@@ -56,11 +61,7 @@ class Dakrnet19(nn.Module):
         x5 = self.conv3(x4)
         x6 = self.conv4(x5)
         x7 = self.conv5(x6)
-        x8 = self.maxpool(x7)
-        x9 = self.conv6(x8)
-        x10 = self.conv7(x9)
-        x11 = self.conv8(x10)
-        x12 = self.maxpool(x11)
+        x8 = self.maxpool(x7)              
         x13 = self.conv9(x12)
         x14 = self.conv10(x13)
         x15 = self.conv11(x14)
@@ -125,7 +126,7 @@ class Darknet19_train:
             t_Prec = []
             n = 0
             for data in self.dataset:
-                self.network.train()
+                self.network = self.network.train()
                 image, label = data[0].to(self.device), data[1].to(self.device)
 #                 hypo = parallel_model(self.network, image, output_device = 0, device_ids=[0,1,2,3])
                 hypo = self.network.forward(image)
@@ -151,7 +152,7 @@ class Darknet19_train:
                 
                 if step % print_interval ==0 and n==0:
                     with torch.no_grad():
-                        self.network.eval()
+                        self.network = self.network.eval()
                         k = 0
                         for val_data in self.val_dataset:
                             val_image, val_label = val_data[0].to(self.device), val_data[1].to(self.device)
@@ -190,18 +191,16 @@ class Yolov2(nn.Module):
 
     
     def buildNetwork(self):
-        self.feature = Dakrnet19()
-        self.feature.load_state_dict(torch.load('./dataset/Darknet19.pth', map_location=self.device))
+        feature = Dakrnet19()
+        feature.load_state_dict(torch.load('./dataset/Darknet19.pth', map_location=self.device))
         j = 0
         x = []
-        for i in self.feature.children():
+        for i in feature.children():
             if j == 0:
                 maxpool = i
             else:
                 i_list = []
                 for ii in i.children():
-                    if isinstance(ii, torch.nn.BatchNorm2d):
-                        ii.track_running_stats = False
                     i_list.append(ii)
                 i = nn.Sequential(*list(i_list))
                 i.training=False
@@ -221,34 +220,40 @@ class Yolov2(nn.Module):
         self.conv3 = conv_batch(1024+512*4,1024)
         self.output = conv_batch(1024, self.aSize*(5+self.catNum), is_linear=True)
 
-    def _train(self):
-        self.feature1.eval()
-        self.feature2.eval()
 
+    def train(self):
         self.conv1.train()
         self.conv2.train()
         self.conv3.train()
         self.output.train()
+
+
     
-    def _eval(self):
-
-        self.feature1.eval()
-        self.feature2.eval()
-
+    def eval(self):
         self.conv1.eval()
         self.conv2.eval()
         self.conv3.eval()
         self.output.eval()
+        for i in self.conv1.children():
+
+            if isinstance(i, nn.BatchNorm2d):
+                i
+                break
+
+
         
     def forward(self, x):
         z = self.feature1(x)
         shape = z.shape
-        print(self.feature2)
         y = self.feature2(z)
         y = self.conv1(y)
         y = self.conv2(y)
 
-        z = z.view((shape[0], shape[1]*4, int(shape[2]/2), int(shape[3]/2)))
+        z1 = z[:,:,:int(shape[2]/2),:int(shape[3]/2)]
+        z2 = z[:,:,int(shape[2]/2):, :int(shape[3]/2)]
+        z3 = z[:,:,:int(shape[2]/2),int(shape[3]/2):]
+        z4 = z[:,:,int(shape[2]/2):, int(shape[3]/2):]
+        z = torch.cat((z1,z2,z3,z4), dim=1)
         y = torch.cat((y,z), dim=1)
         y = self.conv3(y)
         output = self.output(y)

@@ -55,6 +55,11 @@ class Crop_bd:
                 box[3] = o_size[1] * self.aspect-1
             if (box[2] < 0) or (box[3] < 0):
                 idx[k] = 0
+            x, y = (box[0] + box[2])/2, (box[1]+box[3])/2
+            if x >= o_size[0] * self.aspect or x < 0:
+                idx[k] =0
+            if y >= o_size[1] * self.aspect or y < 0:
+                idx[k] = 0
         
         idx = idx == 1
         label['boxes'] = boxes[idx]
@@ -136,6 +141,11 @@ class VOCDataset:
         labels = []
         areas = []
         objects = root.findall("object")
+        size = root.find("size")
+        w = float(size.find("width").text)
+        h = float(size.find("height").text)
+
+        
 
         for obj in objects:
             bndbox = obj.find("bndbox")
@@ -269,13 +279,16 @@ class anchor_box:
             tree = Et.parse(xml)
             root = tree.getroot()
             objects = root.findall("object")
+            size = root.find("size")
+            w = float(size.find("width").text)
+            h = float(size.find("height").text)
             for obj in objects:
                 bndbox = obj.find("bndbox")
                 xmin = float(bndbox.find("xmin").text)
                 xmax = float(bndbox.find("xmax").text)
                 ymin = float(bndbox.find("ymin").text)
                 ymax = float(bndbox.find("ymax").text)
-                box.append([xmax-xmin, ymax-ymin])
+                box.append([(xmax-xmin)/w, (ymax-ymin)/h])
 
         # if isinstance(box, np.ndarray):
         #     pass
@@ -350,7 +363,9 @@ class anchor_box:
     
 
 if __name__=="__main__":
-    dataset = VOCDataset()
-    test = dataset[1012]
-    img_show(test)
+    # dataset = VOCDataset()
+    # test = dataset[1012]
+    # img_show(test)
+    anchor = anchor_box()
+    anchor.run()
     
