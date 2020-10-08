@@ -135,6 +135,7 @@ class Yolov2Trainer:
 
                 if step > 1000:
                     print_interval = 100
+        torch.save(self.network.state_dict, './dataset/Yolov2.pth')
 
                 
 if __name__ == "__main__":
