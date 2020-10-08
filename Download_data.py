@@ -2,6 +2,7 @@ import os
 import wget
 import tarfile
 
+
 def download_VOC_2012():
     '''
     Downloads VOC_2012 dataset for object detection
@@ -30,5 +31,6 @@ def download_VOC_2012():
                 print('Voc 2012 is unzip')
                 tf.close()
     
-if __name__=="__main__":
+    
+if __name__ == "__main__":
     download_VOC_2012()
