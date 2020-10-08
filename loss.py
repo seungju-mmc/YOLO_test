@@ -131,7 +131,8 @@ def calculate_loss(y_preds, labels, device, l_coord=5, l_confid=1, l_noobj=0.5,
             xy = torch.stack((x_true, y_true), dim=0)
             xy_loss += (selectedXY-xy).pow(2).sum() * l_coord
 
-            w, h = torch.abs(box[2]-box[0]), torch.abs(box[3]-box[1])
+            w, h = box[2]-box[0], box[3]-box[1]
+            print(w, h)
             wh = torch.stack((w, h), dim=0).pow(0.5)
             selectedWH = (selectedWH+1e-3).pow(0.5)
             wh_loss += (selectedWH-wh).pow(2).sum() * l_coord

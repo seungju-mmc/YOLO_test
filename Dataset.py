@@ -37,24 +37,32 @@ class Crop_bd:
         idx = torch.ones((len(boxes)))
 
         for k, box in enumerate(boxes):
+
             box[0] -= i
             box[2] -= i
             box[1] -= j
             box[3] -= j
-            if box[0] < 0:
+
+            if box[0] <= 0:
                 box[0] = 1
-            if box[1] < 0:
+            if box[1] <= 0:
                 box[1] = 1
-            if box[2] > (o_size[0]*self.aspect):
+            if box[2] >= (o_size[0]*self.aspect):
                 box[2] = o_size[0] * self.aspect-1
-            if box[3] > (o_size[1] * self.aspect):
+            if box[3] >= (o_size[1] * self.aspect):
                 box[3] = o_size[1] * self.aspect-1
-            if (box[2] < 0) or (box[3] < 0):
+            if (box[2] <= 2) or (box[3] <= 2):
                 idx[k] = 0
             x, y = (box[0] + box[2])/2, (box[1]+box[3])/2
-            if x >= o_size[0] * self.aspect or x < 0:
+            if x > o_size[0] * self.aspect or x < 0:
                 idx[k] = 0
             if y >= o_size[1] * self.aspect or y < 0:
+                idx[k] = 0
+
+            w, h = box[2] - box[0], box[3] - box[1]
+            if w < (o_size[0] * self.aspect * 0.03):
+                idx[k] = 0
+            if h < (o_size[1] * self.aspect * 0.03):
                 idx[k] = 0
                 
         idx = idx == 1
@@ -356,9 +364,10 @@ class anchor_box:
  
 
 if __name__ == "__main__":
-    # dataset = VOCDataset()
-    # test = dataset[1012]
-    # img_show(test)
-    anchor = anchor_box()
-    anchor.run()
-    
+    dataset = VOCDataset()
+    a = np.random.randint(0, 1000, 20)
+    for i in a:
+        test = dataset[i]
+        img_show(test)
+    # anchor = anchor_box()
+    # anchor.run()
