@@ -131,7 +131,8 @@ class Yolov2Trainer:
                     catLoss = torch.stack(catLoss, dim=0).cpu().detach().numpy().mean()
                     for g in self.optimizer.param_groups:
                         lr = g['lr']
-                    # self.tensorboard((Loss, xyLoss, whLoss, confLoss,catLoss),step)
+                    if self.write_mode:
+                        self.tensorboard((Loss, xyLoss, whLoss, confLoss, catLoss), step)
 
                     print("""
                     Epoch : {:4d} // Step : {:5d} // Loss : {:.3f} // xyLoss : {:.3f} //
