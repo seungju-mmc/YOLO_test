@@ -137,5 +137,5 @@ class Yolov2Trainer:
                 
 if __name__ == "__main__":
 
-    trainer = Yolov2Trainer(batch_size=8, device="cpu", division=1)
+    trainer = Yolov2Trainer(batch_size=64, device="cuda:2", division=1)
     trainer.run()
