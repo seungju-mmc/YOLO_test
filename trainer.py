@@ -29,7 +29,7 @@ class Yolov2Trainer:
         self.network.train()
 
         parm = {}
-        parm['name'] = 'sgd'
+        parm['name'] = 'adam'
         parm['learning_rate'] = lr
         self.lr = lr
         parm['weight_decay'] = weight_decay
@@ -139,5 +139,5 @@ class Yolov2Trainer:
                 
 if __name__ == "__main__":
 
-    trainer = Yolov2Trainer(batch_size=64, device="cuda:2", division=1)
+    trainer = Yolov2Trainer(batch_size=8, device="cpu", division=1)
     trainer.run()
