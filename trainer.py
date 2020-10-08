@@ -123,9 +123,10 @@ class Yolov2Trainer:
                     for g in self.optimizer.param_groups:
                         lr = g['lr']
                     # self.tensorboard((Loss, xyLoss, whLoss, confLoss,catLoss),step)
-                    print("Epoch : {:4d} // Step : {:5d} // Loss : {:.3f} // xyLoss : {:.3f} //\
-                           whLoss : {:.3f} // confLoss : {:.3f} //catLoss : {:.3f} //\
-                           Learning rate : {:.5f}".format(
+
+                    print("""Epoch : {:4d} // Step : {:5d} // Loss : {:.3f} // xyLoss : {:.3f} //
+                             whLoss : {:.3f} // confLoss : {:.3f} //catLoss : {:.3f} //
+                             Learning rate : {:.5f}""".format(
                                epoch+1, step, Loss, xyLoss, whLoss, confLoss, catLoss, lr))
                     
                     Loss = []
