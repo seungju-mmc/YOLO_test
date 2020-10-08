@@ -68,7 +68,7 @@ class Yolov2Trainer:
         step_per_epoch = int(len(self.dataset)/self.mini_batch)
         total_num = np.linspace(0, len(self.dataset)-1, len(self.dataset))
         n = 0
-        print_interval = 1
+        print_interval = 10
         for epoch in range(self.epoch):
             np.random.shuffle(total_num)
             index = total_num.copy()
@@ -139,5 +139,5 @@ class Yolov2Trainer:
                 
 if __name__ == "__main__":
 
-    trainer = Yolov2Trainer(batch_size=4, device="cpu", division=1)
+    trainer = Yolov2Trainer(batch_size=64, device="cuda:2", division=1)
     trainer.run()
