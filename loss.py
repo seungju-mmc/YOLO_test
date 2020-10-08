@@ -55,7 +55,7 @@ def calculate_ious(boxes, box, wh=False, xywh=False):
     return iou
 
 
-def calculate_loss(y_preds, labels, device, l_coord=2, l_confid=1, l_noobj=0.1, 
+def calculate_loss(y_preds, labels, device, l_coord=5, l_confid=1, l_noobj=0.5, 
                    threshold=0.6, catNum=20, 
                    anchor_box=np.load('./dataset/anchor_box.npy'), img_size=416):
 
@@ -131,9 +131,9 @@ def calculate_loss(y_preds, labels, device, l_coord=2, l_confid=1, l_noobj=0.1,
             xy = torch.stack((x_true, y_true), dim=0)
             xy_loss += (selectedXY-xy).pow(2).sum() * l_coord
 
-            w, h = box[2]-box[0], box[3]-box[1]
+            w, h = torch.abs(box[2]-box[0]), torch.abs(box[3]-box[1])
             wh = torch.stack((w, h), dim=0).pow(0.5)
-            selectedWH = selectedWH.pow(0.5)
+            selectedWH = (selectedWH+1e-3).pow(0.5)
             wh_loss += (selectedWH-wh).pow(2).sum() * l_coord
 
             cf_loss += (selectedConfid - ious[index]).pow(2).sum() * l_confid
