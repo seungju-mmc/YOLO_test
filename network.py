@@ -267,7 +267,7 @@ class Yolov2(nn.Module):
         self.conv3.train()
         self.conv4.train()
         self.output.train()
-    
+
     def forward(self, x):
         
         z = self.feature1(x)

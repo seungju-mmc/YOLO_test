@@ -5,6 +5,7 @@ from Dataset import VOCDataset
 from torchvision.ops import nms
 from torchvision import transforms
 from utils import img_show
+from loss import calculate_ious
 
 
 class EvalMAP:
@@ -23,6 +24,8 @@ class EvalMAP:
                     'dog', 'horse', 'motorbike', 'person', 'pottedplant',
                     'sheep', 'sofa', 'train', 'tvmonitor']
         self.PIL = transforms.ToPILImage()
+        self.cNum = len(self.cat)
+        self.tP, self.p, self.t = np.zeros(self.cNum), np.zeros(self.cNum), np.zeros(self.cNum)
     
     def getBBoxes(self, x, aBox='./dataset/anchor_box.npy', threshold=0.2):
         aBox = np.load(aBox)
@@ -74,38 +77,70 @@ class EvalMAP:
 
         return data
 
-    def forward(self, x, display_mode=True):
+    def forward(self, x, tData, display_mode=True):
         image = x
         bBoxes = self.getBBoxes(x)
         nmsBoxes = self.NMS(bBoxes)
         data = self.wrapperBox(nmsBoxes, image)
         if display_mode:
             img_show(data)
+        
+        self.AP(data, tData)
 
         return data
+    
+    def AP(self, pred_data, true_data):
+        pData, tData = pred_data['target'], true_data
+        pBoxes, tBoxes = pData['boxes'], tData['boxes']
+        tCats = tData['category']
+        if pBoxes is not None:
+            pCats = pData['category']
+
+            for (pBox, pCat) in zip(pBoxes, pCats):
+                pCat = self.cat.index(pCat)
+                ious = calculate_ious(tBoxes, pBox)
+                maxInd = torch.argmax(ious)
+
+                maxIou = ious[maxInd]
+                tCat = tCats[maxInd]
+                if tCat == pCat and maxIou > 0.6:
+                    self.tP[tCat] += 1
+                self.p[pCat] += 1
+        for tCat in tCats:
+            self.t[tCat] += 1
+    
+    def mAP(self):
+        recall = self.tP / (self.p + 1e-3)
+        precision = self.tP / (self.t + 1e-3)
+
+        recall = np.mean(recall)
+        precision = np.mean(precision)
+
+        print("""
+            Recall : {:.3f} /// Precision : {:.3f} at iou_treshold 0.6
+        """.format(recall, precision))
 
 
 if __name__ == "__main__":
     network = Yolov2(device="cpu")
     device = torch.device("cpu")
-    x = torch.load('./dataset/Yolov2.pth', map_location=device)
-    network.load_state_dict(x())
+    network.load_state_dict(torch.load('./dataset/Yolov2.pth', map_location="cpu"))
     network.eval()
     Eval = EvalMAP(network)
     
     valDataset = VOCDataset(train_mode=False)
 
     total_dataset = len(valDataset)
-    ind = np.random.randint(0, total_dataset, 20)
+    ind = np.random.randint(0, total_dataset, total_dataset)
     j = 0
     for i in ind:
         data = valDataset[i]
-        # img_show(data)
         img, label = data['image'], data['target']
         img = torch.unsqueeze(img, 0)
         j += 1
         with torch.no_grad():
-            
-            Eval.forward(img)
+            Eval.forward(img, label, display_mode=False)
+    
+    Eval.mAP()
         
 
