@@ -7,6 +7,7 @@ from network import Yolov2
 from Dataset import VOCDataset
 from utils import get_optimizer, parallel_model
 from loss import calculate_loss
+from eval import EvalMAP
 
 
 class Yolov2Trainer:
@@ -68,6 +69,17 @@ class Yolov2Trainer:
         self.writer.add_scalar("wh_loss", wh, step)
         self.writer.add_scalar("conf_loss", conf, step)
         self.writer.add_scalar("cat", cat, step)
+
+    def measurePerfomance(self):
+        Eval = EvalMAP(self.network.cpu())
+        for i in range(len(self.val_dataset)):
+            data = self.val_dataset[i]
+            img, label = data['image'], data['target']
+            img = torch.unsqueeze(img, 0)
+            with torch.no_grad():
+                Eval.forward(img, label, display_mode=False)
+        
+        Eval.mAP()
         
     def run(self):
         step = 0
@@ -145,10 +157,12 @@ class Yolov2Trainer:
                 if step > 1000:
                     print_interval = 100
             torch.save(self.network.state_dict(), './dataset/Yolov2.pth')
+            if (epoch+1) % 30 == 0:
+                self.measurePerfomance()
 
                 
 if __name__ == "__main__":
 
     trainer = Yolov2Trainer(batch_size=4, device="cpu", division=1,
-                            write_mode=True, load_path='./dataset/Yolov2.pth')
-    trainer.run()
+                            write_mode=False)
+    trainer.measurePerfomance()
