@@ -8,3 +8,6 @@ Pascal_VOC_2012/*
 *.ipynb
 *.ipynb_checkpoints
 *.pth
+*.jpg
+*.json
+*.zip 
