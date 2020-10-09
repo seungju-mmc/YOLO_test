@@ -1,14 +1,18 @@
 from PIL import ImageDraw
 import torch.nn as nn
 import torch
+import torchvision.transforms.functional as TF
 
 
 def img_show(data):
     image, label = data['image'], data['target']
+    if torch.is_tensor(image):
+        image = TF.to_pil_image(image)
     image_draw = ImageDraw.Draw(image)
     boxes = label['boxes']
-    for box in boxes:
-        image_draw.rectangle([(box[0], box[1]), (box[2], box[3])], width=1)
+    if boxes != None:
+        for box in boxes:
+            image_draw.rectangle([(box[0], box[1]), (box[2], box[3])], width=1)
     image.show()
 
 

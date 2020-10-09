@@ -47,7 +47,7 @@ class Yolov2Trainer:
         if self.write_mode:
             self.writer = SummaryWriter('./dataset/tensorboard/'+date_time+'/')
 
-    def lr_scheduling(self, step,epoch):
+    def lr_scheduling(self, step, epoch):
         if(step < 1000) and (self.burn_in):
             lr = self.lr * (step/1000)**4
             for g in self.optimizer.param_groups:
@@ -60,7 +60,6 @@ class Yolov2Trainer:
         if (epoch + 1) == 90:
             for g in self.optimizer.param_groups:
                 g['lr'] = self.lr * 1e-2
-
     
     def tensorboard(self, datas, step):
         loss, xy, wh, conf, cat = datas
@@ -145,10 +144,11 @@ class Yolov2Trainer:
 
                 if step > 1000:
                     print_interval = 100
-            torch.save(self.network.state_dict, './dataset/Yolov2.pth')
+            torch.save(self.network.state_dict(), './dataset/Yolov2.pth')
 
                 
 if __name__ == "__main__":
 
-    trainer = Yolov2Trainer(batch_size=64, device="cuda:2", division=1, write_mode=True)
+    trainer = Yolov2Trainer(batch_size=4, device="cpu", division=1,
+                            write_mode=True, load_path='./dataset/Yolov2.pth')
     trainer.run()
