@@ -211,7 +211,7 @@ class ImageNetDataset(Dataset):
         self.data_path = '/home/mmc-server3/Server/dataset/ILSVRC2012_img_train/'
         if val_mode:
             self.data_path = '/home/mmc-server3/Server/dataset/ILSVRC2012_img_val/'
-            self.val_label = np.loadtxt('./ILSVRC2011_validation_ground_truth.txt')
+            self.val_label = np.loadtxt('./dataset/ILSVRC2011_validation_ground_truth.txt')
             self.cat = np.empty((0), dtype='str')
         
         data = np.empty((0,), dtype='str')
@@ -409,7 +409,11 @@ class cocoDataSet(Dataset):
         cats = []
 
         for ann in anns:
-            bboxes.append(ann['bbox'])
+            x, y, w, h = [i for i in ann['bbox']]
+            box = [x, y,
+                   x + w, y + h]
+            
+            bboxes.append(box)
             cats.append(self.catIdx.index(ann['category_id']))
         target['boxes'] = torch.tensor(bboxes)
         target['category'] = torch.tensor(cats)
@@ -429,21 +433,17 @@ class cocoDataSet(Dataset):
         return {'image': image, 'target': target}
 
 
-
-
-
-
-
 if __name__ == "__main__":
     dataset = VOCDataset()
     b = dataset[10]
-    # a = np.random.randint(0, 1000, 20)
+    a = np.random.randint(0, 1000, 20)
     # for i in a:
     #     test = dataset[i]
     #     img_show(test)
     # anchor = anchor_box()
     # anchor.run()
     cocoDa = cocoDataSet(train_mode=False)
-    x = cocoDa[11]
-    print(len(cocoDa))
+    for i in a:
+        test = cocoDa[i]
+        img_show(test)
     
