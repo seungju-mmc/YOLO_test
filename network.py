@@ -70,7 +70,7 @@ class ResidualConv(nn.Module):
 
 class Darknet53(nn.Module):
     
-    def __init__(self, img_size, class_num):
+    def __init__(self, img_size=256, class_num=1000):
         super(Darknet53, self).__init__()
         self.isize = img_size
         self.class_num = class_num
