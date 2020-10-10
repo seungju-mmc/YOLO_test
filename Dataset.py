@@ -9,6 +9,7 @@ import xml.etree.ElementTree as Et
 from torchvision import transforms
 from PIL import Image, ImageDraw
 from torch.utils.data import Dataset
+from cocoapi.PythonAPI.pycocotools.coco import COCO
 
 
 def img_show(x):
@@ -361,13 +362,88 @@ class anchor_box:
         idx = np.argmax(ious)
 
         return idx
- 
+
+
+class cocoDataSet(Dataset):
+
+    def __init__(self, iSize=416, train_mode=True):
+        super(cocoDataSet, self).__init__()
+        self.iSize = iSize
+        self.data_folder = './MS_COCO_2017'
+        self.trainMode = train_mode
+        if train_mode:
+            self.dataType = 'train2017'
+        else:
+            self.dataType = 'val2017'
+        self.annFile = './MS_COCO_2017_Anno/annotations/instances_{}.json'.format(self.dataType)
+        self.coco = COCO(self.annFile)
+        self.Idx = list(self.coco.imgs.keys())
+        self.catIdx = list(self.coco.cats.keys())
+
+        self.resize_bd = Resize_bd(img_size=iSize)
+        self.crop_bd = Crop_bd()
+        self.transform = transforms.Compose(
+            [transforms.ColorJitter(brightness=0.75, hue=0.1, saturation=.75),
+             transforms.ToTensor()]
+        )
+        self.va_transform = transforms.Compose([
+            transforms.ToTensor()
+        ])
+
+    def load_image(self, idx):
+        iname = '{0:0>12}'.format(idx)+'.jpg'
+        path = os.path.join(self.data_folder, self.dataType, iname)
+        image = Image.open(path).convert("RGB")
+        return image
+    
+    def __len__(self):
+        return len(self.coco.imgs.keys())
+        
+    def __getitem__(self, idx):
+        target = {}
+        idx = self.Idx[idx]
+        image = self.load_image(idx)
+        anns = self.coco.imgToAnns[idx]
+
+        bboxes = []
+        cats = []
+
+        for ann in anns:
+            bboxes.append(ann['bbox'])
+            cats.append(self.catIdx.index(ann['category_id']))
+        target['boxes'] = torch.tensor(bboxes)
+        target['category'] = torch.tensor(cats)
+
+        if self.trainMode:
+            image, target = self.crop_bd((image, target))
+            image, target = self.resize_bd((image, target))
+            prob = np.random.rand()
+            if prob > 0.7:
+                image = self.transform(image)
+            else:
+                image = self.va_transform(image)
+        else:
+            image, target = self.resize_bd((image, target))
+            image = self.va_transform(image)
+
+        return {'image': image, 'target': target}
+
+
+
+
+
+
 
 if __name__ == "__main__":
     dataset = VOCDataset()
-    a = np.random.randint(0, 1000, 20)
-    for i in a:
-        test = dataset[i]
-        img_show(test)
+    b = dataset[10]
+    # a = np.random.randint(0, 1000, 20)
+    # for i in a:
+    #     test = dataset[i]
+    #     img_show(test)
     # anchor = anchor_box()
     # anchor.run()
+    cocoDa = cocoDataSet(train_mode=False)
+    x = cocoDa[11]
+    print(len(cocoDa))
+    
