@@ -235,14 +235,15 @@ class Darknet53_train:
                     val_loss = np.array(Val_Loss).mean()
                     prec = np.array(Prec).mean()
                     tprec = np.array(t_Prec).mean()
-                    print("""Epoch: {} // Step: {} // Loss : {:.2f} // Val_Loss : {:.2f} //
+                    print("""
+                           Epoch: {} // Step: {} // Loss : {:.2f} // Val_Loss : {:.2f}
                            Prec : {:.3f} // Val_Prec : {:.3f}""".format(
                                (i+1), step, loss, val_loss, tprec, prec))
                     Loss = []
                     Prec = []
                     Val_Loss = []
                     t_Prec = []
-            save_path = './dataset/Darknet19.pth'
+            save_path = './dataset/Darknet53.pth'
             torch.save(self.network.state_dict(), save_path)
 
 
