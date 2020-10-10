@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 
 from Dataset import ImageNetDataset
@@ -45,69 +46,97 @@ def conv_batch(in_num, out_num, kernel_size=3, padding=1, stride=1, eps=1e-5, mo
     return temp
 
 
-class Dakrnet19(nn.Module):
+class ResidualConv(nn.Module):
+    
+    def __init__(self, in_num):
+        super(ResidualConv, self).__init__()
 
-    def __init__(self):
-        super(Dakrnet19, self).__init__()
-        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+        mid_num = int(in_num / 2)
 
-        self.conv1 = conv_batch(3, 32)
-        self.conv2 = conv_batch(32, 64)
-        self.conv3 = conv_batch(64, 128)
-        self.conv4 = conv_batch(128, 64, kernel_size=1, padding=0)
-        self.conv5 = conv_batch(64, 128)
-        self.conv6 = conv_batch(128, 256)
-        self.conv7 = conv_batch(256, 128, kernel_size=1, padding=0)
-        self.conv8 = conv_batch(128, 256)
-        self.conv9 = conv_batch(256, 512)
-        self.conv10 = conv_batch(512, 256, kernel_size=1, padding=0)
-        self.conv11 = conv_batch(256, 512)
-        self.conv12 = conv_batch(512, 256, kernel_size=1, padding=0)
-        self.conv13 = conv_batch(256, 512)
-       
-        self.conv14 = conv_batch(512, 1024)
-        self.conv15 = conv_batch(1024, 512, kernel_size=1, padding=0)
-        self.conv16 = conv_batch(512, 1024)
-        self.conv17 = conv_batch(1024, 512, kernel_size=1, padding=0)
-        self.conv18 = conv_batch(512, 1024)
-        self.linear = conv_batch(1024, 1000, kernel_size=1, padding=0, is_linear=True)
-        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.flatten = nn.Flatten()
-#         self.softmax = nn.Softmax()
+        self.layer1 = conv_batch(in_num, mid_num, kernel_size=1, padding=0)
+        self.layer2 = conv_batch(mid_num, in_num)
 
     def forward(self, x):
-        shape = x.shape
-        x1 = self.conv1(x)
-        x2 = self.maxpool(x1)
-        x3 = self.conv2(x2)
-        x4 = self.maxpool(x3)
-        x5 = self.conv3(x4)
-        x6 = self.conv4(x5)
-        x7 = self.conv5(x6)
-        x8 = self.maxpool(x7)
-        x9 = self.conv6(x8)
-        x10 = self.conv7(x9)
-        x11 = self.conv8(x10)
-        x12 = self.maxpool(x11)
-        x13 = self.conv9(x12)
-        x14 = self.conv10(x13)
-        x15 = self.conv11(x14)
-        x16 = self.conv12(x15)
-        x17 = self.conv13(x16)
-        x18 = self.maxpool(x17)
-        x19 = self.conv14(x18)
-        x20 = self.conv15(x19)
-        x21 = self.conv16(x20)
-        x22 = self.conv17(x21)
-        x23 = self.conv18(x22)
-        x24 = self.linear(x23)
-        x25 = self.avg_pool(x24)
-        x25 = x25.view(shape[0], 1000)
         
-        return x25
+        residual = x
+        
+        out = self.layer1(x)
+        z = self.layer2(out)
+
+        z += residual
+
+        return z
 
 
-class Darknet19_train:
+class Darknet53(nn.Module):
+    
+    def __init__(self, img_size, class_num):
+        super(Darknet53, self).__init__()
+        self.isize = img_size
+        self.class_num = class_num
+        self.build_network()
+
+    def build_network(self):
+        self.conv001 = conv_batch(3, 32)
+        self.conv002 = conv_batch(32, 64, stride=2)
+
+        self.block001 = self.make_layer(64, 1)
+        self.conv003 = conv_batch(64, 128, stride=2)
+
+        self.block002 = self.make_layer(128, 2)
+        self.conv004 = conv_batch(128, 256, stride=2)
+
+        self.block003 = self.make_layer(256, 8)
+        self.conv005 = conv_batch(256, 512,  stride=2)
+
+        self.block004 = self.make_layer(512, 8)
+        self.conv006 = conv_batch(512, 1024, stride=2)
+
+        self.block005 = self.make_layer(1024, 4)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.flatten = nn.Flatten() 
+        self.fc = nn.Linear(1024, self.class_num)
+
+    def make_layer(self, in_channels, num_blocks):
+        layers = []
+        for i in range(num_blocks):
+            layers.append(ResidualConv(in_channels))
+
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = self.conv001(x)
+        out = self.conv002(out)
+        out = self.block001(out)
+        out = self.conv003(out)
+        out = self.block002(out)
+        out = self.conv004(out)
+        out = self.block003(out)
+        out = self.conv005(out)
+        out = self.block004(out)
+        out = self.conv006(out)
+        out = self.avgpool(out)  # b, 1024, t,t
+        out = out.view(-1, 1024)
+        out = self.fc(out)
+#         out = torch.softmax(out, dim=1)
+
+        return out
+
+
+class Upsample(nn.Module):
+    """ nn.Upsample is deprecated """
+
+    def __init__(self, scale_factor, mode="nearest"):
+        super(Upsample, self).__init__()
+        self.scale_factor = scale_factor
+        self.mode = mode
+
+    def forward(self, x):
+        x = F.interpolate(x, scale_factor=self.scale_factor, mode=self.mode)
+        return x
+
+
+class Darknet53_train:
 
     def __init__(self, batch_size=128, epoch=10, lr=1e-1, weight_decay=5e-4, 
                  momentum=0.9, device="cpu", division=1, 
@@ -120,7 +149,7 @@ class Darknet19_train:
         self.division = division
         self.dataset = DataLoader(ImageNetDataset(), batch_size=self.mini_batch, shuffle=True)
         self.val_dataset = DataLoader(ImageNetDataset(val_mode=True), batch_size=1, shuffle=True)
-        self.network = Dakrnet19().to(self.device)
+        self.network = Darknet53().to(self.device)
         self.parallel_mode = parallel
         
         if (load_path is not None):
