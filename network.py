@@ -192,7 +192,7 @@ class Darknet53_train:
                     )
                 
                 hypo = self.network.forward(image)
-                loss = self.critieron(hypo, label)
+                loss = self.critieron(hypo, label)/self.division
                 loss.backward()
                 n += 1
                 if n == self.division:
@@ -202,7 +202,7 @@ class Darknet53_train:
                     n = 0
                     step += 1
                 with torch.no_grad():
-                    Loss.append(loss.detach().cpu().numpy())
+                    Loss.append(loss.detach().cpu().numpy()*self.division)
                     total_num = len(label)
                     idx = torch.argmax(hypo, dim=1)
                     total_true = (idx == label).float().sum()
@@ -210,7 +210,7 @@ class Darknet53_train:
                     t_Prec.append(t_precision.cpu().detach().numpy())
                 
                 if step > 1000:
-                    print_interval = 100
+                    print_interval = 500
                 
                 if step % print_interval == 0 and n == 0:
                     with torch.no_grad():
@@ -228,7 +228,7 @@ class Darknet53_train:
                             Prec.append(precision.cpu().numpy())
                             Val_Loss.append(val_loss.cpu().numpy())
                             k += 1 
-                            if k == 10:
+                            if k == 500:
                                 break
                             
                     loss = np.array(Loss).mean()
@@ -315,7 +315,7 @@ class Yolov2(nn.Module):
    
 if __name__ == "__main__":
 
-    darknet53 = Darknet53_train(batch_size=128, device="cuda:2", burn_in=False, division=2
-                                ,load_path='./dataset/Darknet53.pth')
+    darknet53 = Darknet53_train(batch_size=128, device="cuda:2", burn_in=False, division=2,
+                                load_path='./dataset/Darknet53.pth')
     darknet53.run()
     # test = Yolov2()
