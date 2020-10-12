@@ -299,9 +299,9 @@ class Yolov3(nn.Module):
         self.feature02 = nn.Sequential(*list(x)[7:9]).to(self.device)
         self.feature03 = nn.Sequential(*list(x)[9:11]).to(self.device)
 
-        self.feature01.training = False
-        self.feature02.training = False
-        self.feature03.training = False
+        self.feature01.eval()
+        self.feature02.eval()
+        self.feature03.eval()
 
         self.Cs01 = ConvSet(1024)
         self.D01 = DetectSet(1024)

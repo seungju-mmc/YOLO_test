@@ -426,10 +426,10 @@ class cocoDataSet(Dataset):
             if prob > 0.7:
                 image = self.transform(image)
             else:
-                image = self.transform(image)
+                image = self.va_transform(image)
         else:
             image, target = self.resize_bd((image, target))
-            image = self.transform(image)
+            image = self.va_transform(image)
 
         return {'image': image, 'target': target}
 
