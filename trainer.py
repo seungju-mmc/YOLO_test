@@ -138,8 +138,8 @@ class Yolov3Trainer:
                 confLoss.append(sconfid_loss)
                 catLoss.append(scat_loss)
 
-                total_loss = total_loss/self.division
-                total_loss.backward()
+                stotal_loss = stotal_loss / self.division
+                stotal_loss.backward()
                 n += 1
                 if n == self.division:
                     step += 1
