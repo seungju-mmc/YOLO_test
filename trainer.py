@@ -176,8 +176,8 @@ class Yolov3Trainer:
                 if step > 1000:
                     print_interval = 100
             torch.save(self.network.state_dict(), './dataset/Yolov2.pth')
-            if (epoch+1) % 30 == 0:
-                self.measurePerfomance()
+            # if (epoch+1) % 30 == 0:
+            #     self.measurePerfomance()
 
                 
 if __name__ == "__main__":
