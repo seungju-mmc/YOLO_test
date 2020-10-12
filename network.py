@@ -315,7 +315,6 @@ class Yolov2(nn.Module):
    
 if __name__ == "__main__":
 
-    darknet53 = Darknet53_train(batch_size=128, device="cuda:2", burn_in=False, division=2,
-                                load_path='./dataset/Darknet53.pth')
+    darknet53 = Darknet53_train(batch_size=128, device="cuda:2", division=2)
     darknet53.run()
     # test = Yolov2()
