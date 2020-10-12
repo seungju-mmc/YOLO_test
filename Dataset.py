@@ -84,7 +84,7 @@ class Resize_bd:
         scaling_w, scaling_h = self.img_size/o_size[0], self.img_size/o_size[1]
         image = TF.resize(image, (self.img_size, self.img_size), self.interporation)
         boxes = label['boxes']
-        if boxes != []:
+        if boxes.shape[0] != 0:
             boxes[:, 0] *= scaling_w
             boxes[:, 2] *= scaling_w
             boxes[:, 1] *= scaling_h
@@ -426,18 +426,18 @@ class cocoDataSet(Dataset):
             if prob > 0.7:
                 image = self.transform(image)
             else:
-                image = self.va_transform(image)
+                image = self.transform(image)
         else:
             image, target = self.resize_bd((image, target))
-            image = self.va_transform(image)
+            image = self.transform(image)
 
         return {'image': image, 'target': target}
 
 
 if __name__ == "__main__":
-    dataset = VOCDataset()
-    b = dataset[10]
-    a = np.random.randint(0, 1000, 20)
+    # dataset = VOCDataset()
+    # b = dataset[10]
+    a = np.random.randint(0, 1000, 200)
     # for i in a:
     #     test = dataset[i]
     #     img_show(test)
