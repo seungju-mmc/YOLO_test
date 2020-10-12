@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from Dataset import ImageNetDataset
+from Dataset import ImageNetDataset, cocoDataSet
 from utils import get_optimizer, parallel_model
 from torch.utils.data import DataLoader
 
@@ -68,6 +68,40 @@ class ResidualConv(nn.Module):
         return z
 
 
+class ConvSet(nn.Module):
+
+    def __init__(self, in_num, factor=1):
+        super(ConvSet, self).__init__()
+        self.layer1 = conv_batch(in_num, int(512/factor), kernel_size=1, padding=0)
+        self.layer2 = conv_batch(int(512/factor), int(1024/factor))
+        self.layer3 = conv_batch(int(1024/factor), int(512/factor), kernel_size=1, padding=0)
+        self.layer4 = conv_batch(int(512/factor), int(1024/factor))
+    
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        return x
+
+
+class DetectSet(nn.Module):
+
+    def __init__(self, in_num):
+        super(DetectSet, self).__init__()
+        self.layer1 = conv_batch(in_num, 512, kernel_size=1, padding=0)
+        self.layer2 = conv_batch(512, 1024)
+        self.out = conv_batch(1024, 255, kernel_size=1, padding=0, is_linear=True)
+    
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.out(x)
+
+        return x
+
+
 class Darknet53(nn.Module):
     
     def __init__(self, img_size=256, class_num=1000):
@@ -106,15 +140,15 @@ class Darknet53(nn.Module):
 
     def forward(self, x):
         out = self.conv001(x)
-        out = self.conv002(out)
+        out = self.conv002(out)  # 208
         out = self.block001(out)
-        out = self.conv003(out)
+        out = self.conv003(out)  # 104
         out = self.block002(out)
-        out = self.conv004(out)
+        out = self.conv004(out)  # 52
         out = self.block003(out)
-        out = self.conv005(out)
+        out = self.conv005(out)  # 26
         out = self.block004(out)
-        out = self.conv006(out)
+        out = self.conv006(out)  # 13
         out = self.avgpool(out)  # b, 1024, t,t
         out = out.view(-1, 1024)
         out = self.fc(out)
@@ -247,74 +281,90 @@ class Darknet53_train:
             torch.save(self.network.state_dict(), save_path)
 
 
-class Yolov2(nn.Module):
-    def __init__(self, aSize=5, catNum=20, device="cpu"):
-        super(Yolov2, self).__init__()
-        self.aSize = aSize
+class Yolov3(nn.Module):
+    def __init__(self, catNum=80, device="cpu"):
+        super(Yolov3, self).__init__()
         self.catNum = catNum
         self.device = torch.device(device)
         self.buildNetwork()
     
     def buildNetwork(self):
-        feature = Dakrnet19()
-        feature.load_state_dict(torch.load('./dataset/Darknet19.pth', map_location=self.device))
-        j = 0
+        feature = Darknet53()
+        feature.load_state_dict(torch.load('./dataset/Darknet53.pth', map_location=self.device))
         x = []
         for i in feature.children():
-            if j == 0:
-                maxpool = i
-            else:
-                i_list = []
-                for ii in i.children():
-                    i_list.append(ii)
-                i = nn.Sequential(*list(i_list))
-                i.training = False
-                x.append(i)
-            j += 1
-        k = [1, 3, 7, 11, 17]
-        for j in k:
-            x.insert(j, maxpool)
+            x.append(i)
+        
+        self.feature01 = nn.Sequential(*list(x)[:7]).to(self.device)
+        self.feature02 = nn.Sequential(*list(x)[7:9]).to(self.device)
+        self.feature03 = nn.Sequential(*list(x)[9:11]).to(self.device)
 
-        self.feature1 = nn.Sequential(*list(x)[:13]).to(self.device)
-        self.feature2 = nn.Sequential(*list(x)[13:-3]).to(self.device)
-        self.feature1.training = False
-        self.feature2.training = False
+        self.feature01.training = False
+        self.feature02.training = False
+        self.feature03.training = False
 
-        self.conv1 = conv_batch(1024, 1024)
-        self.conv2 = conv_batch(1024, 1024)
-        self.conv3 = conv_batch(512, 64, kernel_size=1, padding=0)
-        self.reorg = Reorg()
-        self.conv4 = conv_batch(1024+64*4, 1024)
-        self.output = conv_batch(
-            1024, self.aSize*(5+self.catNum), is_linear=True, 
-            kernel_size=1, padding=0)
+        self.Cs01 = ConvSet(1024)
+        self.D01 = DetectSet(1024)
+
+        self.c1 = conv_batch(1024, 256, kernel_size=1, padding=0)
+        self.u1 = Upsample(2)
+
+        self.Cs02 = ConvSet(256 + 512, factor=2)
+        self.D02 = DetectSet(512)
+
+        self.c2 = conv_batch(512, 128, kernel_size=1, padding=0)
+        self.u2 = Upsample(2)
+
+        self.Cs03 = ConvSet(128 + 256, factor=4)
+        self.D03 = DetectSet(256)
 
     def train(self):
-        # self.feature1.train()
-        # self.feature2.train()
-        self.conv1.train()
-        self.conv2.train()
-        self.conv3.train()
-        self.conv4.train()
-        self.output.train()
+        self.Cs01.train()
+        self.Cs02.train()
+        self.Cs03.train()
+
+        self.D01.train()
+        self.D02.train()
+        self.D03.train()
+
+        self.c1.train()
+        self.c2.train()
 
     def forward(self, x):
+
+        x1 = self.feature01(x)  # 256 52 52
+        x2 = self.feature02(x1)  # 512 26 26
+        x3 = self.feature03(x2)  # 1024 13 13
+
+        y1 = self.Cs01(x3)  # 1024 13 13
+        o1 = self.D01(y1)  # 255 13 13
         
-        z = self.feature1(x)
-        y = self.feature2(z)
-        y = self.conv1(y)
-        y = self.conv2(y)
-        z = self.conv3(z)
-        z = self.reorg(z)
-        y = torch.cat((z, y), dim=1)
-        y = self.conv4(y)
-        output = self.output(y)
+        y2 = self.c1(y1)  # 256 13 13
+        y2 = self.u1(y2)  # 256 26 26
+        y2 = torch.cat((y2, x2), dim=1)  # 768 26 26
+        
+        y2 = self.Cs02(y2)  # 512 26 26
+        o2 = self.D02(y2)  # 255 26 26
+        
+        y3 = self.c2(y2)  # 128 26 26
+        y3 = self.u2(y3)
+        y3 = torch.cat((y3, x1), dim=1)
 
-        return output
+        y3 = self.Cs03(y3)
+        o3 = self.D03(y3)
 
-   
+        return o1, o2, o3
+        
+
 if __name__ == "__main__":
 
-    darknet53 = Darknet53_train(batch_size=128, device="cuda:2", division=2)
-    darknet53.run()
-    # test = Yolov2()
+    # darknet53 = Darknet53_train(batch_size=128, device="cuda:2", division=2)
+    # darknet53.run()
+    # # test = Yolov2()
+    v3 = Yolov3()
+    data = cocoDataSet(train_mode=False)
+
+    x = data[0]
+    z = x['image'].to(torch.device("cpu"))
+    z = torch.unsqueeze(z, dim=0)
+    y = v3.forward(z)
