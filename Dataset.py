@@ -84,10 +84,11 @@ class Resize_bd:
         scaling_w, scaling_h = self.img_size/o_size[0], self.img_size/o_size[1]
         image = TF.resize(image, (self.img_size, self.img_size), self.interporation)
         boxes = label['boxes']
-        boxes[:, 0] *= scaling_w
-        boxes[:, 2] *= scaling_w
-        boxes[:, 1] *= scaling_h
-        boxes[:, 3] *= scaling_h
+        if boxes != []:
+            boxes[:, 0] *= scaling_w
+            boxes[:, 2] *= scaling_w
+            boxes[:, 1] *= scaling_h
+            boxes[:, 3] *= scaling_h
         label['boxes'] = boxes
 
         return (image, label)

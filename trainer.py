@@ -3,14 +3,14 @@ import numpy as np
 import datetime
 
 from torch.utils.tensorboard import SummaryWriter
-from network import Yolov2
-from Dataset import VOCDataset
+from network import Yolov3
+from Dataset import cocoDataSet
 from utils import get_optimizer, parallel_model
 from loss import calculate_loss
-from eval import EvalMAP
+from _Eval import EvalMAP
 
 
-class Yolov2Trainer:
+class Yolov3Trainer:
 
     def __init__(self, epoch=160, batch_size=64, division=1, 
                  lr=1e-3, momentum=.9, write_mode=False,
@@ -19,7 +19,7 @@ class Yolov2Trainer:
         self.epoch = epoch
         self.mini_batch = int(batch_size/division)
         self.division = division
-        self.network = Yolov2(device=device)
+        self.network = Yolov3(device=device)
         self.device = torch.device(device)
         self.network = self.network.to(self.device)
         self.write_mode = write_mode
@@ -38,15 +38,17 @@ class Yolov2Trainer:
         self.optimizer = get_optimizer(parm, self.network)
 
         if eval_mode:
-            self.val_dataset = VOCDataset(train_mode=False)
+            self.val_dataset = cocoDataSet(train_mode=False)
         else:
-            self.dataset = VOCDataset()
-            self.val_dataset = VOCDataset(train_mode=False)
+            self.dataset = cocoDataSet(train_mode=False)
+            self.val_dataset = cocoDataSet(train_mode=False)
         self.eval_mode = eval_mode
         self.burn_in = burn_in
         date_time = datetime.datetime.now().strftime("%Y%m%d-%H-%M-%S")
         if self.write_mode:
             self.writer = SummaryWriter('./dataset/tensorboard/'+date_time+'/')
+        
+        self.anchorPath = ['./dataset/anchor1.npy', './dataset/anchor2.npy', './dataset/anchor3.npy']
 
     def lr_scheduling(self, step, epoch):
         if(step < 1000) and (self.burn_in):
@@ -80,6 +82,10 @@ class Yolov2Trainer:
                 Eval.forward(img, label, display_mode=False)
         
         Eval.mAP()
+    
+    def Eval(self):
+        for i in self.network.children():
+            i.eval()
         
     def run(self):
         step = 0
@@ -110,14 +116,27 @@ class Yolov2Trainer:
                     y_preds = parallel_model(self.network, batch_img, [3, 0, 1, 2], output_device=3)
                 else:
                     y_preds = self.network.forward(batch_img)
-                total_loss, xy_loss, wh_loss, confid_loss, cat_loss = \
-                    calculate_loss(y_preds, batch_label, self.device)
+                
+                stotal_loss, sxy_loss, swh_loss, sconfid_loss, scat_loss = 0, 0, 0, 0, 0
+                k = [0, 1, 2]
+                for y_pred, aPath, i in zip(y_preds, self.anchorPath, k):
+                
+                    total_loss, xy_loss, wh_loss, confid_loss, cat_loss = \
+                    calculate_loss(
+                        y_pred, batch_label, self.device, 
+                        anchor_box=np.load(aPath), v3=True, nAnchor=i
+                        )
+                    stotal_loss += total_loss
+                    sxy_loss += xy_loss
+                    swh_loss += wh_loss
+                    sconfid_loss += confid_loss
+                    scat_loss += cat_loss
 
-                Loss.append(total_loss)
-                xyLoss.append(xy_loss)
-                whLoss.append(wh_loss)
-                confLoss.append(confid_loss)
-                catLoss.append(cat_loss)
+                Loss.append(stotal_loss)
+                xyLoss.append(sxy_loss)
+                whLoss.append(swh_loss)
+                confLoss.append(sconfid_loss)
+                catLoss.append(scat_loss)
 
                 total_loss = total_loss/self.division
                 total_loss.backward()
@@ -163,6 +182,7 @@ class Yolov2Trainer:
                 
 if __name__ == "__main__":
 
-    trainer = Yolov2Trainer(batch_size=4, device="cpu", division=1,
+    trainer = Yolov3Trainer(batch_size=4, device="cpu", division=1,
                             write_mode=False)
-    trainer.measurePerfomance()
+    trainer.run()
+

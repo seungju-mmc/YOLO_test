@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from network import Yolov2
+from network import Yolov3
 from Dataset import VOCDataset
 from torchvision.ops import nms
 from torchvision import transforms
@@ -122,9 +122,9 @@ class EvalMAP:
 
 
 if __name__ == "__main__":
-    network = Yolov2(device="cpu")
+    network = Yolov3(device="cpu")
     device = torch.device("cpu")
-    network.load_state_dict(torch.load('./dataset/Yolov2.pth', map_location="cpu"))
+    network.load_state_dict(torch.load('./dataset/Yolov3.pth', map_location="cpu"))
     network.eval()
     Eval = EvalMAP(network)
     

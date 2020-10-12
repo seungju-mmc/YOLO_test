@@ -56,9 +56,9 @@ def calculate_ious(boxes, box, wh=False, xywh=False):
 
 
 def calculate_loss(y_preds, labels, device, l_coord=5, l_confid=1, l_noobj=0.5, 
-                   threshold=0.6, catNum=20, 
-                   anchor_box=np.load('./dataset/anchor_box.npy'), img_size=416):
-
+                   threshold=0.6, catNum=80, nAnchor= -1,
+                   anchor_box=np.load('./dataset/anchor_box.npy'), img_size=416, v3=False):
+    
     grid_size = y_preds.shape[2]
     batch_size = y_preds.shape[0]
     anchor_size = len(anchor_box)
@@ -74,6 +74,20 @@ def calculate_loss(y_preds, labels, device, l_coord=5, l_confid=1, l_noobj=0.5,
     anchor_box = anchor_box.copy()
     anchor_box *= grid_size
     anchor_box = torch.tensor(anchor_box).to(device).float()
+
+    if v3:
+        allAnchors = np.load('./dataset/totalAnchors.npy')
+        allAnchors = allAnchors.copy()
+        allAnchors *= grid_size
+        allAnchors = torch.tensor(allAnchors).to(device).float()
+
+        if nAnchor == 0:
+            nInd = [6, 7, 8]
+        elif nAnchor == 1:
+            nInd = [3, 4, 5]
+        else:
+            nInd = [0, 1, 2]
+
     y_preds = y_preds.permute(0, 2, 3, 1)  # (B,H,W,C)
     y_preds = y_preds.view((batch_size, grid_size, grid_size, anchor_size,  5+catNum))
 
@@ -94,7 +108,7 @@ def calculate_loss(y_preds, labels, device, l_coord=5, l_confid=1, l_noobj=0.5,
     predConfidenc = predConfidenc.permute(1, 0)
     predCat = y_preds[:, :, :, :, 5:].contiguous()
     predCat = predCat.permute(4, 0, 1, 2, 3)
-    predCat = predCat.view((20, -1))
+    predCat = predCat.view((catNum, -1))
     predCat = predCat.permute(1, 0)
     crossentropy = nn.CrossEntropyLoss()
 
@@ -115,6 +129,13 @@ def calculate_loss(y_preds, labels, device, l_coord=5, l_confid=1, l_noobj=0.5,
             cat = cat.to(device)
             x_true, y_true = (box[0] + box[2])/2, (box[1]+box[3])/2 
             x_ind, y_ind = x_true.long(), y_true.long()
+
+            if v3:
+                allAnchorIous = calculate_ious(allAnchors, box, wh=True)
+                ious = torch.argmax(allAnchorIous)
+                if ious not in nInd:
+                    continue
+
             anchorIous = calculate_ious(anchor_box, box, wh=True)
             anchorTrueIndex = torch.argmax(anchorIous)
             index = y_ind * grid_size * anchor_size + x_ind * anchor_size + anchorTrueIndex
@@ -138,7 +159,7 @@ def calculate_loss(y_preds, labels, device, l_coord=5, l_confid=1, l_noobj=0.5,
             wh_loss += (selectedWH-wh).pow(2).sum() * l_coord
 
             cf_loss += (selectedConfid - ious[index]).pow(2).sum() * l_confid
-            cat_loss += crossentropy(selectedCat.view((1, 20)), cat.view(1))
+            cat_loss += crossentropy(selectedCat.view((1, catNum)), cat.view(1))
         
         noobjInd = objmask < 1
         noobjConfid = batchConfid[noobjInd]
