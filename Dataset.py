@@ -43,6 +43,18 @@ class Crop_bd:
             box[2] -= i
             box[1] -= j
             box[3] -= j
+            
+            x, y = (box[0] + box[2])/2, (box[1]+box[3])/2
+            if x > o_size[0] * self.aspect or x < 0:
+                idx[k] = 0
+            if y >= o_size[1] * self.aspect or y < 0:
+                idx[k] = 0
+
+            w, h = box[2] - box[0], box[3] - box[1]
+            if w < (o_size[0] * self.aspect * 0.01):
+                idx[k] = 0
+            if h < (o_size[1] * self.aspect * 0.01):
+                idx[k] = 0
 
             if box[0] <= 0:
                 box[0] = 1
@@ -54,17 +66,7 @@ class Crop_bd:
                 box[3] = o_size[1] * self.aspect-1
             if (box[2] <= 2) or (box[3] <= 2):
                 idx[k] = 0
-            x, y = (box[0] + box[2])/2, (box[1]+box[3])/2
-            if x > o_size[0] * self.aspect or x < 0:
-                idx[k] = 0
-            if y >= o_size[1] * self.aspect or y < 0:
-                idx[k] = 0
-
-            w, h = box[2] - box[0], box[3] - box[1]
-            if w < (o_size[0] * self.aspect * 0.03):
-                idx[k] = 0
-            if h < (o_size[1] * self.aspect * 0.03):
-                idx[k] = 0
+            
                 
         idx = idx == 1
         label['boxes'] = boxes[idx]
