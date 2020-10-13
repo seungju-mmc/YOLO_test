@@ -40,7 +40,7 @@ class Yolov3Trainer:
         if eval_mode:
             self.val_dataset = cocoDataSet(train_mode=False)
         else:
-            self.dataset = cocoDataSet()
+            self.dataset = cocoDataSet(train_mode=False)
             self.val_dataset = cocoDataSet(train_mode=False)
         self.eval_mode = eval_mode
         self.burn_in = burn_in
@@ -182,7 +182,7 @@ class Yolov3Trainer:
                 
 if __name__ == "__main__":
 
-    trainer = Yolov3Trainer(batch_size=64, device="cuda:1", division=4,
-                            write_mode=False)
+    trainer = Yolov3Trainer(batch_size=4, device="cpu", division=4,
+                            write_mode=False, load_path='./dataset/Yolov3.pth' )
     trainer.run()
 

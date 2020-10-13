@@ -56,7 +56,7 @@ def calculate_ious(boxes, box, wh=False, xywh=False):
 
 
 def calculate_loss(y_preds, labels, device, l_coord=5, l_confid=1, l_noobj=0.5, 
-                   threshold=0.6, catNum=80, nAnchor= -1,
+                   threshold=0.6, catNum=80, nAnchor=-1,
                    anchor_box=np.load('./dataset/anchor_box.npy'), img_size=416, v3=False):
     
     grid_size = y_preds.shape[2]
