@@ -48,7 +48,8 @@ class Yolov3Trainer:
         if self.write_mode:
             self.writer = SummaryWriter('./dataset/tensorboard/'+date_time+'/')
         
-        self.anchorPath = ['./dataset/anchor1.npy', './dataset/anchor2.npy', './dataset/anchor3.npy']
+        self.anchorPath = ['./dataset/anchor1.npy', 
+                           './dataset/anchor2.npy', './dataset/anchor3.npy']
 
     def lr_scheduling(self, step, epoch):
         if(step < 1000) and (self.burn_in):

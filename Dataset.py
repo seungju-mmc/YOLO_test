@@ -369,10 +369,10 @@ class anchor_box:
 
 class cocoDataSet(Dataset):
 
-    def __init__(self, iSize=416, train_mode=True):
+    def __init__(self, folderPath='./MS_COCO_2017', iSize=416, train_mode=True):
         super(cocoDataSet, self).__init__()
         self.iSize = iSize
-        self.data_folder = './MS_COCO_2017'
+        self.data_folder = folderPath
         self.trainMode = train_mode
         if train_mode:
             self.dataType = 'train2017'
